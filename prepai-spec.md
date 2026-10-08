@@ -1,7 +1,7 @@
 # PrepAI — Product Specification Document
 ## AI Whiteboard Tutor for Indian Students
 
-**Version:** 2.9
+**Version:** 2.10
 **Date:** October 8, 2026
 **Author:** Krishna (Ascorp Softwares)
 **Status:** Ready for AIDLC + SEF Pipeline
@@ -17,6 +17,7 @@
 - v2.7 — Code structure rules (9.1.1): one `agentN` package per agent, feature sub-packages with controller/service/repository/model layers, shared models in `model/common`, and an `agent.md` per agent. Added `refresh_tokens` and `verification_tokens` tables (missing for Agent 2), and moved lesson orchestration (reserve/commit/release) to Agent 4.
 - v2.8 — Code quality standards (9.1.2): story-style code, hard limits, SOLID and Spring patterns, testability rules and a definition of done. Enforced in the build by Checkstyle, an ArchUnit architecture test, JaCoCo coverage and `lombok.config`.
 - v2.9 — Code is organised by business module (`account`, `quota`, `generation`, `lesson`, `billing`, `speech`, `common`) instead of per-agent packages; agent assignment is recorded in one table. Each module has a `MODULE.md` and `prepai/ARCHITECTURE.md` indexes them. The "Day 1 / Day 2" plan is replaced by a dependency-ordered build.
+- v2.10 — Added TODO-9 (no LLM API key exists; the build uses a fake lesson provider until a provider is chosen).
 
 ---
 
@@ -2305,6 +2306,7 @@ Open action items that need a person (mostly Krishna) rather than an agent. Upda
 | TODO-6 | **Check embedding quality.** Test `all-MiniLM-L6-v2` on about 100 JEE/NEET paraphrase and near-miss pairs, and tune `RAG_MIN_SIMILARITY` (0.95 is a starting point). | Krishna / Agent 3 | Enabling the RAG cache | Open |
 | TODO-7 | **Choose the domain and email (SMTP) provider.** Needed for `APP_BASE_URL`, CORS, verification emails and guardian-consent emails. | Krishna | Registration flow in production | Open |
 | TODO-8 | **Run the pre-launch cache seed** (`QUALITY_SEED_SIZE`) once the verifier is built (6.3 cold start). | Krishna | Nothing; lowers cost from the first week after launch | Open |
+| TODO-9 | **Get an LLM provider for production.** Lesson generation and image reading call the Claude API, which needs an Anthropic API key from a developer-console account (pay per token). The Claude Pro plan does not include API access, and no key exists today, so the build runs on a fake lesson provider. Create the account and key, or choose another provider behind the `LLMProvider` interface, then run one live smoke test of lesson generation and image extraction. | Krishna | **Real lessons; launch** | Open |
 
 ---
 
