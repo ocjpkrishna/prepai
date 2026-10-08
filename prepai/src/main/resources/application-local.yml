@@ -1,0 +1,64 @@
+# Local development profile (default). Start with: ./gradlew bootRun
+# Expects PostgreSQL 16 + pgvector on 5432 and Redis on 6379. Nothing here is a real secret.
+server:
+  port: ${SERVER_PORT:8085}
+  address: ${SERVER_ADDRESS:127.0.0.1}
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:9091}
+    address: 127.0.0.1
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/prepai}
+    username: ${DB_USERNAME:prepai}
+    password: ${DB_PASSWORD:prepai}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025} # a local catch-all mail server such as Mailpit
+    properties:
+      mail:
+        smtp:
+          auth: false
+  ai:
+    anthropic:
+      api-key: ${CLAUDE_API_KEY:missing-key} # set CLAUDE_API_KEY to call the real API
+
+logging:
+  level:
+    root: INFO
+    com.ascorp.prepai: DEBUG
+
+prepai:
+  app:
+    base-url: ${APP_BASE_URL:http://localhost:4300}
+    cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4300}
+    mail-from: ${MAIL_FROM:no-reply@localhost}
+  audio:
+    dir: ${AUDIO_DIR:./data/audio}
+  security:
+    jwt:
+      secret: ${JWT_SECRET:local-dev-only-secret-never-use-in-production-0123456789}
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}

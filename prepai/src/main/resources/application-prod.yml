@@ -1,0 +1,85 @@
+# Production profile. Start with SPRING_PROFILES_ACTIVE=prod (set in the systemd unit).
+# Every secret comes from the environment (EnvironmentFile) and has NO default on purpose:
+# a missing value stops the app at startup instead of running with a wrong one.
+server:
+  port: ${SERVER_PORT:8085}
+  address: 127.0.0.1 # nginx is the only public entry point
+  forward-headers-strategy: framework # trust X-Forwarded-* from nginx / Cloudflare
+  shutdown: graceful
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:9091}
+    address: 127.0.0.1 # scraped by Prometheus on the same host, never exposed by nginx
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: never
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s # lets in-flight lessons finish during deploys
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 2
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  jpa:
+    show-sql: false
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME}
+    password: ${SMTP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+  ai:
+    anthropic:
+      api-key: ${CLAUDE_API_KEY}
+    embedding:
+      transformer:
+        cache:
+          directory: ${EMBEDDING_CACHE_DIR:/var/lib/prepai/models}
+
+logging:
+  structured:
+    format:
+      console: logstash # JSON logs with the trace ID, see spec 8.4
+      file: logstash
+  file:
+    name: ${LOG_DIR:/var/log/prepai}/prepai.log # rotated by logrotate, 30-day retention
+  level:
+    root: INFO
+    com.ascorp.prepai: INFO
+
+prepai:
+  app:
+    base-url: ${APP_BASE_URL}
+    cors-allowed-origins: ${CORS_ALLOWED_ORIGINS}
+    mail-from: ${MAIL_FROM}
+  audio:
+    dir: ${AUDIO_DIR:/var/lib/prepai/audio}
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+    google:
+      client-id: ${GOOGLE_CLIENT_ID}
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID}
+    key-secret: ${RAZORPAY_KEY_SECRET}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET}

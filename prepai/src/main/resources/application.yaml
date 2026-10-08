@@ -1,0 +1,93 @@
+# Shared configuration for every profile.
+# Environment-specific values live in application-local.yml and application-prod.yml.
+# "local" is the default profile; production must start with SPRING_PROFILES_ACTIVE=prod.
+spring:
+  application:
+    name: prepai
+  profiles:
+    default: local
+  threads:
+    virtual:
+      enabled: true # blocking LLM, TTS and DB calls run on Java 21 virtual threads
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate # Flyway owns the schema, Hibernate only checks it
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    clean-disabled: true
+  servlet:
+    multipart:
+      max-file-size: 5MB # image uploads, matches prepai.image.max-bytes
+      max-request-size: 6MB
+  ai:
+    anthropic:
+      timeout: ${LLM_TIMEOUT_SECONDS:30}s
+      max-retries: 0 # retries are handled by the app (max 2 attempts, see spec 2.6)
+      chat:
+        options:
+          model: ${CLAUDE_MODEL:claude-sonnet-5-5}
+          max-tokens: 8192
+          temperature: 0.2
+    embedding:
+      transformer:
+        cache:
+          enabled: true # all-MiniLM-L6-v2 (384 dims) is downloaded once, then reused
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: prepai
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      claude:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: ${LLM_BREAKER_FAILURE_RATE:50}
+        wait-duration-in-open-state: ${LLM_BREAKER_OPEN_SECONDS:60}s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+
+# PrepAI settings (see spec section 10.3 for the matching environment variables)
+prepai:
+  llm:
+    max-attempts: ${LLM_MAX_ATTEMPTS:2}
+    local:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434} # dev/testing provider only
+  image:
+    max-bytes: ${IMAGE_MAX_BYTES:5242880}
+  rag:
+    min-similarity: ${RAG_MIN_SIMILARITY:0.95}
+    embedding-dimensions: ${EMBEDDING_DIMENSIONS:384}
+  quality:
+    batch-size: ${QUALITY_BATCH_SIZE:50}
+    seed-size: ${QUALITY_SEED_SIZE:300}
+    verifier-model: ${VERIFIER_MODEL:claude-fable-5-1}
+  audio:
+    ttl-days: ${AUDIO_TTL_DAYS:30}
+    max-gb: ${AUDIO_MAX_GB:10}
+    warmup-concurrency: ${TTS_WARMUP_CONCURRENCY:2}
+  voicestudio:
+    api-url: ${VOICESTUDIO_API_URL:http://localhost:5050}
+    default-voice: ${VOICESTUDIO_DEFAULT_VOICE:en-IN-default}
+  privacy:
+    lesson-retention-days: ${LESSON_RETENTION_DAYS:365}
+    policy-version: ${PRIVACY_POLICY_VERSION:v1}
+    guardian-consent-under-age: ${GUARDIAN_CONSENT_REQUIRED_UNDER_AGE:18}
+    signups-per-ip-per-hour: ${SIGNUPS_PER_IP_PER_HOUR:5}
+  security:
+    jwt:
+      access-token-hours: ${JWT_EXPIRY_HOURS:1}
+      refresh-token-days: ${JWT_REFRESH_EXPIRY_DAYS:30}
