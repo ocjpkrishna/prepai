@@ -30,14 +30,14 @@ Haiku is 20 times cheaper than Sonnet on both input and output. No more expensiv
 If a Haiku attempt still fails `./gradlew check` after two fix rounds, do not keep going: write the failing gate and class in the handoff log, mark the row `needs Sonnet`, and continue with the next row.
 
 ## The 60% rule (switching to the cheaper model)
-Claude cannot see the plan usage or change its own model; the user does both. When plan usage reaches about 60% (check `/usage` or `/cost`, whichever the installed version shows):
+In an interactive session Claude cannot see the plan usage or change its own model; the user does both. (`scripts/autobuild.sh` does this automatically from the plan usage Claude reports.) When plan usage reaches about 60% (check `/usage`, whichever the installed version shows):
 1. Finish the open checkpoint. Do not start a new row on Sonnet.
 2. The user switches with `/model` in the session, or opens a new session with `claude --model claude-haiku-5-5`.
 3. Every remaining row now runs on Haiku, including the ★ rows.
-4. If budget remains at the end, run a Sonnet review (`/code-review`) on the ★ modules only, and fix what it finds.
+4. If plan usage allows at the end, run a Sonnet review (`/code-review`) on the ★ modules only, and fix what it finds.
 
 ## Progress
-★ = Sonnet while budget allows (before the 60% mark), Haiku afterwards. Done column: `[ ]` open, `[x]` done, `[!]` blocked (the driver stops and explains why).
+★ = Sonnet while plan usage allows (before the 60% mark), Haiku afterwards. Done column: `[ ]` open, `[x]` done, `[!]` blocked (the driver stops and explains why).
 
 | # | Row | Area | Model | Done |
 |---|-----|------|-------|------|
@@ -61,25 +61,27 @@ Claude cannot see the plan usage or change its own model; the user does both. Wh
 | 17 | Agent 6 | TTS and voice sync, lesson player | ★ Sonnet | [ ] |
 | 18 | Agent 7 | UI pages: landing, auth, dashboard, lesson input, pricing, profile | Haiku | [ ] |
 | 19 | Agent 8 | integration, adversarial and performance tests, E2E | Haiku | [ ] |
-| 20 | Review | Sonnet `/code-review` of the ★ modules, then fixes | Sonnet, if budget remains | [ ] |
+| 20 | Review | Sonnet `/code-review` of the ★ modules, then fixes | Sonnet, if plan usage allows | [ ] |
 
 Flyway migrations belong to the row that owns the table (spec 5.2).
 
 ## Unattended mode (no one answers questions)
-`scripts/autobuild.sh` runs the whole table without anyone present: one fresh, small Claude session per row, each on the model the table names, until every row is `[x]`, a row is blocked, the budget is used, or a stop is requested.
+`scripts/autobuild.sh` runs the whole table without anyone present: one fresh, small Claude session per row, each on the model the table names, until every row is `[x]`, a row is blocked, or a stop is requested. It uses only what the Claude plan (Pro) allows; there is no dollar budget and it never uses paid overage.
 
 ```
-BUDGET_USD=40 scripts/autobuild.sh              run it (set the total budget)
-DRY_RUN=1 BUDGET_USD=40 scripts/autobuild.sh    show what would run, call nothing
-touch .autobuild/STOP                           stop cleanly after the current row
+scripts/autobuild.sh                run it (best inside tmux)
+DRY_RUN=1 scripts/autobuild.sh      show plan usage and the row plan, change nothing
+touch .autobuild/STOP               stop cleanly after the current step
 ```
 
-- **The 60% rule is automatic.** The driver adds up the cost Claude reports for each session. Once the total reaches 60% of `BUDGET_USD` it runs every remaining row on Haiku. The figure is a list-price estimate, so treat the budget as a stand-in for your plan's usage limit.
-- **Hard caps.** `ROW_BUDGET_USD` (default 4) limits one session, `BUDGET_USD` limits the whole run, `ROW_TIMEOUT` (default 90m) limits time, and only one run can be active at a time.
-- **Failures.** A row that does not reach its checkpoint is tried once more (on Sonnet when budget allows). If it fails again, the row is marked `[!]` and the run stops with the reason in `.autobuild/STOPPED`.
+- **Real plan usage.** Claude reports the plan's usage windows (5-hour and weekly) in every headless session, and the driver reads them. At 60% of either window every remaining row runs on Haiku (`SWITCH_FRACTION`). At 90% it waits for that window to reset (`PAUSE_FRACTION`), checks every minute for a stop request, then continues on its own. If the plan ever reports paid overage, the run stops instead of spending money.
+- **Plan limit reached mid-row.** The row is not counted as a failure: the driver waits for the reset and retries the same row.
+- **Caps per session.** `ROW_TIMEOUT` (default 90m) and `ROW_BUDGET_USD` (default 6, a list-price runaway guard rather than money) limit one session. Only one run can be active at a time.
+- **Failures.** A row that does not reach its checkpoint is tried once more (on Sonnet when plan usage allows). If it fails again, the row is marked `[!]` and the run stops with the reason in `.autobuild/STOPPED`.
 - **No questions.** Sessions follow `BUILD-DECISIONS.md`, log new choices there, and list anything only a person can supply under "Needs the user" instead of stopping.
 - **Guardrails.** Sessions run with `scripts/autobuild-settings.json` and `--permission-mode dontAsk`: anything not allowed is refused, not asked. They can read and write only inside this repository; `sudo`, `git push`, `rm -r`, `curl`, `systemctl`, anything under `/etc`, `/opt`, `/root` and `/var`, `.git`, `creds.md` and `.env` files, and the driver itself are blocked.
 - **Between rows** the working tree must be clean (everything committed) or the driver stops.
+- **Shared allowance.** Your own use of Claude draws from the same plan windows. Weekly usage was already 80% on 2026-10-08, with the weekly reset at 2026-10-12 05:00 UTC.
 
 ## Resume prompt for a fresh session
 Paste this, nothing more:
