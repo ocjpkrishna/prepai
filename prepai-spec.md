@@ -1,7 +1,7 @@
 # PrepAI — Product Specification Document
 ## AI Whiteboard Tutor for Indian Students
 
-**Version:** 2.2
+**Version:** 2.3
 **Date:** October 8, 2026
 **Author:** Krishna (Ascorp Softwares)
 **Status:** Ready for AIDLC + SEF Pipeline
@@ -10,6 +10,7 @@
 **Changelog:**
 - v2.1 — Stateless JWT (no Redis sessions), daily-only usage limits, Claude Sonnet 5.5 as fallback, isolated Python Manim service, Gradle build tool.
 - v2.2 — LLM output validation + Sonnet 5.5 fallback pipeline (2.6), privacy/DPDP section (2.7), image input rules (3.1.1), unified error model (4.7), TTS audio caching (4.5), hardened RAG cache (6.3), observability (8.4). All nine agent task cards updated accordingly.
+- v2.3 — Gemini dropped: Claude Sonnet 5.5 is the sole MVP LLM provider (retry-once pipeline instead of provider fallback), local ONNX embeddings (384 dims), Fable 5.1 as the independent verifier, cold-start plan for the verified-only RAG cache, shared existing Grafana used instead of installing one, and a pre-launch TODO checklist (section 15).
 
 ---
 
@@ -71,9 +72,9 @@ Unlike chatbot-style AI tutors (EaseLearn, Edza AI) that dump text answers, Prep
 │                                               │               │
 │  ┌──────────────────────┐  ┌─────────────────▼────────────┐  │
 │  │  Usage Tracking &    │  │  LLM Service (Abstraction)   │  │
-│  │  Rate Limiter        │  │  ├── GeminiProvider          │  │
-│  └──────────────────────┘  │  ├── ClaudeProvider          │  │
-│                             │  └── LocalLLMProvider        │  │
+│  │  Rate Limiter        │  │  ├── ClaudeProvider          │  │
+│  └──────────────────────┘  │  └── LocalLLMProvider (dev)  │  │
+│                             │                              │  │
 │  ┌──────────────────────┐  └──────────────┬───────────────┘  │
 │  │  RAG Service         │                 │                  │
 │  │  (pgvector in PG)    │                 │                  │
@@ -89,8 +90,8 @@ Unlike chatbot-style AI tutors (EaseLearn, Edza AI) that dump text answers, Prep
                               ┌──────────────▼──────────────┐
                               │     LLM APIs                 │
                               │  ┌────────┐ ┌─────────────┐ │
-                              │  │Gemini  │ │Claude/Local │ │
-                              │  │Flash   │ │(Fallback)   │ │
+                              │  │Claude  │ │Local (dev)  │ │
+                              │  │Sonnet  │ │(Ollama)     │ │
                               │  └────────┘ └─────────────┘ │
                               └──────────────────────────────┘
 
@@ -125,8 +126,9 @@ Unlike chatbot-style AI tutors (EaseLearn, Edza AI) that dump text answers, Prep
 | Auth | Spring Security + JWT | Standard, stateless |
 | Database | PostgreSQL 16 + pgvector | Users, lessons, usage tracking + RAG vector search |
 | Cache | Redis 7 | Rate limiting and lesson caching only. Auth is stateless JWT, so no server-side session state is stored |
-| LLM | Gemini Flash (primary), Claude Sonnet 5.5 `claude-sonnet-5-5` (fallback) | Cost-effective primary, high-accuracy fallback for STEM |
-| LLM Integration | Spring AI | Native Gemini + pgvector support in Java |
+| LLM | Claude Sonnet 5.5 `claude-sonnet-5-5` (sole MVP provider) | Strong STEM reasoning and vision (image input) with one consistent behaviour. The provider interface allows adding others later |
+| LLM Integration | Spring AI | Anthropic client + pgvector support in Java |
+| Embeddings | Spring AI ONNX transformers, `all-MiniLM-L6-v2` (384 dims), in-process | Anthropic has no embeddings API. A local model adds no API cost and keeps cached problem text on the VPS |
 | RAG | pgvector (PostgreSQL extension) | No new database, stays in Java ecosystem |
 | Deployment | Native on VPS (no Docker) | 16GB RAM — every MB matters |
 | CI/CD | GitHub Actions | Free for public/private repos |
@@ -139,7 +141,7 @@ Unlike chatbot-style AI tutors (EaseLearn, Edza AI) that dump text answers, Prep
 | SLF4J + Logback | Structured logging |
 | MapStruct | DTO ↔ Entity mapping (zero reflection, compile-time) |
 | Flyway | Database migration versioning |
-| Spring AI | LLM API integration (Gemini, Claude) |
+| Spring AI | LLM API integration (Claude) and local ONNX embeddings |
 | Spring Validation | Request validation (@Valid, @NotBlank) |
 | Spring Security + JWT | Auth with stateless tokens |
 | Jackson | JSON serialization/deserialization |
@@ -166,10 +168,11 @@ public interface LLMProvider {
 }
 ```
 
-Provider selection order:
-1. Gemini Flash (primary — cheapest, fast)
-2. Claude Sonnet 5.5 (fallback if Gemini rate-limited or fails validation)
-3. Local LLM (dev/testing only)
+Provider selection:
+1. Claude Sonnet 5.5 (`claude-sonnet-5-5`) — the only production provider for the MVP (lesson generation and image text extraction)
+2. Local LLM via Ollama — dev/testing only
+
+Decision (2026-10-08): Gemini was dropped from the MVP. Other providers (for example a cheaper model for easy problems) can be added later by implementing this interface and listing them in configuration; the interface does not change.
 
 ### 2.5 Port Configuration
 
@@ -182,14 +185,14 @@ Provider selection order:
 | Redis | 6379 | Default |
 | VoiceStudio API | 5050 | Local TTS service |
 | Manim service (Phase 2) | 5060 | Python render service, localhost only. Verify free with `lsof -i :5060` |
-| Prometheus | 9095 | Metrics store, localhost only |
-| Grafana | 3100 | Dashboards/alerts, behind nginx with auth. Grafana's default 3000 is RESERVED, so it must be moved |
+| Prometheus | 9095 | Metrics store, localhost only. No Prometheus runs on this VPS today, so PrepAI installs its own |
+| Grafana (existing) | 3000 (local) | Already running on this VPS, shared with other services, served at https://algorithmyc.com/gfn/. PrepAI uses it but does not install, move, restart or reconfigure it (see 8.4) |
 | Nginx | 80/443 | Reverse proxy, SSL, static Angular files |
 | code-server | 8443 | Browser-based IDE access |
 
 **Ports 8080, 9000, 3000, 4200 are RESERVED** — already in use by other services on VPS. The DevOps agent must check port availability with `lsof -i :PORT` before binding and update config files if conflicts are detected.
 
-### 2.6 Lesson Validation & Fallback Pipeline
+### 2.6 Lesson Validation & Retry Pipeline
 
 LLM output is untrusted. Every response, from any provider, passes through `LessonValidator` before it is stored, cached, or sent to a client.
 
@@ -204,26 +207,26 @@ LLM output is untrusted. Every response, from any provider, passes through `Less
 
 A response of `{ "error": "OUT_OF_SCOPE" }` (see 6.1) is mapped to `PROBLEM_OUT_OF_SCOPE` (422).
 
-**Fallback flow (maximum 2 LLM calls per request, no same-provider retry loops):**
-1. Gemini Flash is called with timeout `LLM_PRIMARY_TIMEOUT_SECONDS`.
-2. On API error, timeout, HTTP 429, or validation failure, the request escalates immediately to **Claude Sonnet 5.5** (`claude-sonnet-5-5`, timeout `LLM_FALLBACK_TIMEOUT_SECONDS`). For validation failures, the original prompt is re-sent together with the validator's error list (`LessonRequest.validationErrors`, set only on this call) so the model repairs the problem instead of repeating it.
-3. If Sonnet also errors or fails validation, the request fails with `LESSON_GENERATION_FAILED` (502). Nothing is stored and the student's daily quota is not consumed.
+**Generation flow (maximum 2 LLM calls per request, `LLM_MAX_ATTEMPTS`):**
+1. Claude Sonnet 5.5 (`claude-sonnet-5-5`) is called with timeout `LLM_TIMEOUT_SECONDS`. The long, stable system prompt and any few-shot examples use Anthropic prompt caching to reduce cost and latency.
+2. If the call fails with a transient error (timeout, HTTP 429/5xx, overloaded) or the response fails validation, it is retried once. Transient errors wait a short backoff first (honouring `Retry-After`). For validation failures, the original prompt is re-sent together with the validator's error list (`LessonRequest.validationErrors`, set only on this retry) so the model repairs the problem instead of repeating it.
+3. If the second attempt also fails, the request fails with `LESSON_GENERATION_FAILED` (502), or `LLM_UNAVAILABLE` (503) when the cause is the provider being unavailable. Nothing is stored and the student's daily quota is not consumed.
 
-**Circuit breaker (Resilience4j):** if Gemini fails at least `LLM_BREAKER_FAILURE_RATE`% of its last 20 calls, requests skip Gemini and go straight to Sonnet for `LLM_BREAKER_OPEN_SECONDS`. Breaker state is exported as a metric (8.4).
+**Circuit breaker (Resilience4j):** if at least `LLM_BREAKER_FAILURE_RATE`% of the last 20 provider calls fail (errors and timeouts, not validation failures), the breaker opens for `LLM_BREAKER_OPEN_SECONDS` and requests fail fast with `LLM_UNAVAILABLE` instead of piling onto a struggling provider. Redis and RAG cache hits are still served while it is open. Breaker state is exported as a metric (8.4).
 
-**Recorded per lesson:** provider, model, `fallback_used`, `fallback_reason` (`PROVIDER_ERROR`, `TIMEOUT`, `RATE_LIMITED`, `VALIDATION_FAILED`, `CIRCUIT_OPEN`), `validation_attempts`, `generation_ms`.
+**Recorded per lesson:** provider, model, `retried`, `retry_reason` (`PROVIDER_ERROR`, `TIMEOUT`, `RATE_LIMITED`, `VALIDATION_FAILED`), `validation_attempts`, `generation_ms`.
 
 **Prompt injection:** student text and text extracted from images are placed inside `<problem>` tags and the system prompt (6.1) tells the model to treat it strictly as data. The validator is the backstop: output that does not match the schema is never used.
 
 ### 2.7 Privacy & Data Protection
 
-Users include minors (under 18), and their questions are stored. The product must comply with India's Digital Personal Data Protection Act, 2023 (DPDP Act) and its rules. This section is the engineering baseline; it is not legal advice and **must be reviewed by counsel before launch**.
+Users include minors (under 18), and their questions are stored. The product must comply with India's Digital Personal Data Protection Act, 2023 (DPDP Act) and its rules. This section is the engineering baseline; it is not legal advice and **must be reviewed by counsel before launch (TODO-1 in section 15)**.
 
 - **Minors:** the age gate sets `users.is_minor`. For under-18 accounts, a guardian email is collected and a consent link is sent; lessons are blocked (`CONSENT_REQUIRED`) until `guardian_consent_at` is set. No behavioural tracking, profiling or targeted advertising for minors.
 - **Consent records:** terms and privacy-policy acceptance are stored with a timestamp and policy version (`terms_accepted_at`, `privacy_policy_version`).
 - **Data minimisation:** only email, name, language, plan and age flag are collected. Names, emails and user IDs are never sent to LLM providers; only problem text is.
 - **Images:** processed in memory only, sent to Claude Sonnet 5.5 for text extraction, never written to disk or the database (the old `input_image_url` column is removed).
-- **Third-party processors** (Google/Gemini, Anthropic, Razorpay, email provider) are listed in the privacy policy. Before launch, confirm each provider's API data-retention and no-training terms.
+- **Third-party processors** (Anthropic, Razorpay, the email provider) are listed in the privacy policy. Confirming each provider's API data-retention and no-training terms is a launch blocker (TODO-2 in section 15). Embeddings run locally, so problem text is not sent to any third party for caching.
 - **User rights:** `GET /api/v1/users/me/export` returns the user's data; `DELETE /api/v1/users/me` soft-deletes immediately and purges personal data within 30 days. Erasure deletes lessons, feedback and usage rows and anonymises the user row; subscription/payment records are kept only as long as financial regulations require, with identifiers minimised.
 - **Retention:** lessons older than `LESSON_RETENTION_DAYS` (default 365) are purged nightly.
 - **RAG and quality tables** store problem text and solutions only, never a user ID; obvious emails and phone numbers are redacted before ingestion.
@@ -256,7 +259,7 @@ Users include minors (under 18), and their questions are stored. The product mus
 - **Handling:** EXIF/GPS metadata is stripped; the image is held in memory only and never persisted (see 2.7).
 - **Extraction:** Claude Sonnet 5.5 (vision) reads the image and returns `{ "problemText": "...", "confidence": "HIGH" | "MEDIUM" | "LOW", "hasDiagram": true | false }`. Diagrams are described in words in `problemText`.
 - **Unreadable images:** `LOW` confidence or no problem found returns `IMAGE_UNREADABLE` (422) with a "retake photo" message; no quota is consumed.
-- **Flows:** `POST /lessons/extract` lets the student confirm or edit the extracted text, then submit it as type `PROBLEM` (recommended). Sending type `IMAGE` to `/lessons/generate` runs extraction first and then the normal pipeline (RAG → Gemini → validation → Sonnet fallback) on the extracted text.
+- **Flows:** `POST /lessons/extract` lets the student confirm or edit the extracted text, then submit it as type `PROBLEM` (recommended). Sending type `IMAGE` to `/lessons/generate` runs extraction first and then the normal pipeline (RAG → Sonnet 5.5 → validation → one retry) on the extracted text.
 - Extraction calls are tracked in cost metrics with `purpose=IMAGE_EXTRACT`.
 
 ### 3.2 Lesson Response (LLM → Backend → Frontend)
@@ -643,8 +646,8 @@ Rules:
 | `DAILY_LIMIT_REACHED` | 429 | Plan's daily sessions used | Upgrade prompt |
 | `RATE_LIMITED` | 429 | Burst or abuse limit | "Slow down" with countdown from `retryAfterSeconds` |
 | `INTERNAL_ERROR` | 500 | Unexpected failure | Generic message with trace ID |
-| `LESSON_GENERATION_FAILED` | 502 | Both providers failed or produced invalid output | "Couldn't build this lesson. No session was used." with Retry |
-| `LLM_UNAVAILABLE` | 503 | All providers down or breaker open | "Tutor is busy, try again shortly" with Retry |
+| `LESSON_GENERATION_FAILED` | 502 | Both attempts failed or produced invalid output | "Couldn't build this lesson. No session was used." with Retry |
+| `LLM_UNAVAILABLE` | 503 | Provider down or circuit breaker open | "Tutor is busy, try again shortly" with Retry |
 | `TTS_UNAVAILABLE` | 503 | VoiceStudio down | Silent mode with captions |
 
 ---
@@ -691,8 +694,8 @@ CREATE TABLE lessons (
     source VARCHAR(20) NOT NULL DEFAULT 'LLM',   -- LLM | RAG_CACHE | REDIS_CACHE
     llm_provider VARCHAR(50),
     llm_model VARCHAR(100),
-    fallback_used BOOLEAN DEFAULT FALSE,
-    fallback_reason VARCHAR(30),                 -- PROVIDER_ERROR | TIMEOUT | RATE_LIMITED | VALIDATION_FAILED | CIRCUIT_OPEN
+    retried BOOLEAN DEFAULT FALSE,
+    retry_reason VARCHAR(30),                 -- PROVIDER_ERROR | TIMEOUT | RATE_LIMITED | VALIDATION_FAILED
     validation_attempts SMALLINT DEFAULT 1,
     generation_ms INTEGER,
     token_count INTEGER,
@@ -734,7 +737,7 @@ CREATE TABLE problem_embeddings (
     exam VARCHAR(50),
     problem_text TEXT NOT NULL,
     solution_json JSONB NOT NULL,
-    embedding vector(768),
+    embedding vector(384),
     numeric_signature VARCHAR(500),              -- normalized numbers+units found in the problem (see 6.3)
     verified BOOLEAN NOT NULL DEFAULT FALSE,     -- only verified rows are ever served from the RAG cache
     verified_at TIMESTAMP,
@@ -847,7 +850,7 @@ Generate a complete whiteboard lesson for this problem.
 The Redis exact-match cache (`lesson:cache:{inputHash}`) is checked first. Then, before sending a request to the LLM:
 1. Normalize the problem text (lowercase, collapse whitespace, canonical unit spellings).
 2. Compute `numeric_signature`: the ordered list of every number+unit in the text (e.g. `60deg|20m/s`).
-3. Embed the normalized text using Spring AI's embedding model.
+3. Embed the normalized text with the local embedding model (`all-MiniLM-L6-v2`, 384 dimensions, via Spring AI ONNX transformers).
 4. Query `problem_embeddings` via pgvector for the top 3 rows with the same `subject`, `verified = TRUE`, and cosine similarity ≥ `RAG_MIN_SIMILARITY` (0.95).
 5. A candidate is a hit only if its `numeric_signature` is identical. The same wording with different numbers (20 m/s vs 25 m/s) is a miss. Near-misses are counted as `rejected_numeric` for threshold tuning.
 6. Hit: return the cached solution (zero LLM tokens), `source = RAG_CACHE`.
@@ -855,7 +858,13 @@ The Redis exact-match cache (`lesson:cache:{inputHash}`) is checked first. Then,
 
 Only verified solutions are served. The nightly verifier (8.1) sets `verified = TRUE`, starting with the highest `ask_count`, so the most-asked problems become cacheable first. When the verifier corrects a solution it also deletes the matching `lesson:cache:{inputHash}` key.
 
-Ingestion stores problem text and solution only: no user ID or other identifiers, and obvious emails/phone numbers are redacted. The vector dimension (768) must match the configured embedding model.
+Ingestion stores problem text and solution only: no user ID or other identifiers, and obvious emails/phone numbers are redacted. The vector dimension (384) must match the configured embedding model; changing the model means re-embedding every row.
+
+**Cold start (decided 2026-10-08):** the cache stays verified-only, because serving an unchecked wrong answer to many students is worse than missing the cache. To avoid launching with an empty cache:
+1. A one-off pre-launch seed run (`QUALITY_SEED_SIZE`, default 300) generates and verifies the most common JEE/NEET problems from the question bank.
+2. The nightly batch continues afterwards, most-asked problems first.
+3. The Redis exact-match cache still serves identical repeat questions immediately for 7 days. A repeat gets the same answer the student already saw, and corrections evict it.
+4. The `prepai_rag_unverified_backlog` gauge (unverified rows with `ask_count` ≥ 3) is watched. If it stays above one night's batch for a week, raise `QUALITY_BATCH_SIZE`.
 
 ---
 
@@ -989,13 +998,13 @@ Notes: speed is applied only through `playbackRate` (server audio is always norm
 
 ### 8.1 Self-Evolving Student Simulator Agent
 
-A frontier model (Claude Fable 5.1 / Sonnet 5.5) acts as a student and grades PrepAI's answers. Runs in **nightly batches** (not per-request — too expensive).
+A frontier model, Claude Fable 5.1 (`claude-fable-5-1`, `VERIFIER_MODEL`), acts as a student and grades PrepAI's answers. Lessons are generated by Sonnet 5.5, so the verifier must be a different, stronger model; Sonnet grading its own answers would share its blind spots. Runs in **nightly batches** (not per-request — too expensive).
 
 **Pipeline:**
 ```
 1. Pull a batch (default 50, `QUALITY_BATCH_SIZE`): first the most-asked unverified problems from `problem_embeddings` (highest `ask_count`, using their stored solutions), then random JEE/NEET problems from the question bank to fill the batch
-2. Send each to PrepAI's Gemini Flash backend → get LessonResponse
-3. Send problem + PrepAI's answer to Fable/Sonnet for verification
+2. Send each to PrepAI's backend (Sonnet 5.5) → get LessonResponse (skipped for rows that already hold a stored solution)
+3. Send problem + PrepAI's answer to Fable 5.1 for verification
 4. Fable grades: correctness (0/1), step quality (1-5), teaching clarity (1-5)
 5. If incorrect or quality < 3:
    a. Log to quality_corrections table with error type
@@ -1003,7 +1012,7 @@ A frontier model (Claude Fable 5.1 / Sonnet 5.5) acts as a student and grades Pr
    c. Update prompt template few-shot examples if pattern detected
    d. Store the corrected solution in problem_embeddings with verified = TRUE and delete the matching Redis `lesson:cache:*` key
 6. If correct and quality ≥ 3: set `verified = TRUE`, `verified_at = now()` on that problem's embedding row (now eligible for RAG hits, see 6.3)
-7. Generate nightly quality report (includes fallback rate, validation-failure rate and cache hit rate from 8.4)
+7. Generate nightly quality report (includes retry rate, validation-failure rate and cache hit rate from 8.4)
 ```
 
 **What the "improvement" actually is:**
@@ -1026,7 +1035,7 @@ Deliberately tries to break PrepAI. Runs as part of CI and nightly.
 - Numeric variants of the same problem (20 vs 25 m/s) — RAG must never return the other problem's cached solution
 - Prompt injection in problem text and in text inside images ("ignore previous instructions")
 - Image attacks: oversized files, wrong magic bytes, polyglot files, EXIF payloads
-- Forced failures: LLM timeout, garbage JSON, provider down, VoiceStudio down — verify fallback behaviour, correct error codes, and that no quota is consumed
+- Forced failures: LLM timeout, garbage JSON, provider down, VoiceStudio down — verify retry behaviour, correct error codes, and that no quota is consumed
 - Signup abuse and consent bypass for minors
 
 **When it finds a bug the QA agent missed:**
@@ -1045,7 +1054,7 @@ Manages infrastructure and deployment.
 - Log rotation and cleanup
 - PostgreSQL/Redis health checks
 - VPS resource monitoring (RAM, disk, CPU)
-- Metrics stack (Prometheus + Grafana) and the alert rules from 8.4
+- Prometheus install, plus PrepAI's dashboards and alert rules in the existing shared Grafana (8.4). Never modifies Grafana itself
 - Audio directory setup and nginx limits (request size, rate limits, blocked internal ports)
 - Nginx config generation and reload
 - SSL certificate management (Certbot)
@@ -1072,10 +1081,11 @@ Manages infrastructure and deployment.
 | `prepai_llm_calls_total` | provider, purpose (LESSON, IMAGE_EXTRACT), outcome | Provider health |
 | `prepai_llm_tokens_total` | provider, direction | Token usage |
 | `prepai_llm_cost_usd_total` | provider, purpose | Cost per session |
-| `prepai_llm_fallback_total` | reason | Fallback rate and why |
+| `prepai_llm_retry_total` | reason | Retry rate and why |
 | `prepai_llm_validation_failures_total` | provider, layer | Output quality per provider |
 | `prepai_llm_circuit_breaker_state` | provider | Breaker open/closed |
 | `prepai_rag_lookup_total` | result (hit, miss, rejected_numeric) | RAG effectiveness |
+| `prepai_rag_unverified_backlog` | | Gauge: unverified rows with `ask_count` ≥ 3 (see 6.3 cold start) |
 | `prepai_tts_requests_total` | outcome (generated, cache_hit, error) | Audio cache and VoiceStudio health |
 | `prepai_tts_latency_seconds` | | Narration readiness |
 | `prepai_api_errors_total` | code | Error mix (4.7) |
@@ -1084,14 +1094,20 @@ Manages infrastructure and deployment.
 
 Default JVM, HikariCP, Redis and HTTP server metrics are also exported. Cost per session is computed as `sum(cost) / count(lessons)` and cross-checked against `lessons.estimated_cost_usd`.
 
-**Dashboards (Grafana, provisioned from version-controlled files):** Lesson pipeline, LLM cost and fallback, Errors, Business funnel, VPS health.
+**Grafana (existing, shared):** a Grafana instance already runs on this VPS (`grafana-server.service`, local port 3000) and is served at `https://algorithmyc.com/gfn/`. It is shared with other services, so PrepAI only adds to it. PrepAI never installs, restarts, upgrades or reconfigures it, never edits its config files, and never touches other dashboards, data sources or the global notification policy.
+- PrepAI gets its own Grafana folder named `PrepAI`. Everything PrepAI creates lives there.
+- Access is through the Grafana HTTP API using a service-account token limited to that folder (`GRAFANA_URL`, `GRAFANA_API_TOKEN`). Krishna creates the token (TODO-5); it is never committed. The Grafana admin credentials are held by Krishna only. They never appear in this spec, the repo, env examples, logs or agent prompts, and agents (including Agent 9) use the scoped token only.
+- A new Prometheus data source named `prepai-prometheus` points at PrepAI's own Prometheus on `localhost:9095`. No Prometheus runs on the VPS today.
+- Dashboards (Lesson pipeline, LLM cost and retries, Errors, Business funnel) and alert rules are stored as JSON in `ops/grafana/` and pushed by `scripts/grafana-sync.sh`, which creates or overwrites only items inside the `PrepAI` folder. For VPS health, reuse an existing dashboard if one exists.
+- PrepAI alert rules carry the label `app=prepai`. Routing them to email is a one-time notification-policy step done by Krishna in the Grafana UI (TODO-5), so automation does not change routing for other services.
+- Because Grafana is reachable on the public internet at `/gfn/`, confirm that login is required and anonymous access is off (TODO-5).
 
 **Alerts:**
 
 | Condition | Threshold | Severity |
 |-----------|-----------|----------|
-| Sonnet fallback rate | > 15% over 1 h | Warning (cost risk) |
-| Gemini validation-failure rate | > 10% over 1 h | Warning |
+| LLM retry rate | > 15% over 1 h | Warning (cost risk) |
+| First-attempt validation-failure rate | > 10% over 1 h | Warning |
 | Average cost per lesson | > $0.05 over 1 h | Warning |
 | Lesson latency p95 | > 10 s for 15 min | Warning |
 | `LESSON_GENERATION_FAILED` rate | > 2% of requests over 15 min | Critical |
@@ -1100,7 +1116,7 @@ Default JVM, HikariCP, Redis and HTTP server metrics are also exported. Cost per
 | VoiceStudio, PostgreSQL or Redis down | any | Critical |
 | Disk > 85% (including audio directory) or RAM > 90% | any | Critical |
 
-Alerts go to email through Grafana alerting. Prometheus + Grafana run natively and should fit in roughly 0.5 GB of RAM combined (confirm on the VPS), with 15-day metric retention.
+Alerts are delivered through the shared Grafana's alerting, as described above. Prometheus runs natively, localhost-only on port 9095, with 15-day retention and roughly 0.3 GB of RAM (confirm on the VPS).
 
 ---
 
@@ -1125,7 +1141,7 @@ Alerts go to email through Grafana alerting. Prometheus + Grafana run natively a
 **Tasks:**
 1. Initialize monorepo structure with git
 2. Scaffold Spring Boot 3.x project with Java 21 and Gradle, including the `./gradlew` wrapper (backend/)
-   - Dependencies: spring-boot-starter-web, spring-boot-starter-security, spring-boot-starter-data-jpa, spring-boot-starter-data-redis, spring-boot-starter-websocket, spring-ai-gemini, spring-ai-anthropic, postgresql driver, pgvector-spring, jjwt, lombok, mapstruct, flyway-core, springdoc-openapi, spring-boot-starter-validation, spring-boot-starter-actuator, spring-boot-starter-mail, micrometer-registry-prometheus, resilience4j-spring-boot3, logstash-logback-encoder
+   - Dependencies: spring-boot-starter-web, spring-boot-starter-security, spring-boot-starter-data-jpa, spring-boot-starter-data-redis, spring-boot-starter-websocket, spring-ai-anthropic, spring-ai-transformers (local ONNX embeddings), postgresql driver, pgvector-spring, jjwt, lombok, mapstruct, flyway-core, springdoc-openapi, spring-boot-starter-validation, spring-boot-starter-actuator, spring-boot-starter-mail, micrometer-registry-prometheus, resilience4j-spring-boot3, logstash-logback-encoder
    - `application.yml`: server.port=8085, management.server.port=9091
 3. Scaffold Angular 18 project (frontend/)
    - Dependencies: @angular/material, konva, ng2-konva, katex
@@ -1168,10 +1184,10 @@ Alerts go to email through Grafana alerting. Prometheus + Grafana run natively a
 
 **Tasks:**
 1. Implement `LLMProvider` interface (see section 2.4)
-2. Implement `GeminiProvider` using Spring AI — calls Gemini Flash API, parses response to LessonResponse
-3. Implement `ClaudeProvider` using Spring AI with Claude Sonnet 5.5 (`claude-sonnet-5-5`) — fallback for lesson generation and the vision model for image text extraction. Support the optional `validationErrors` repair hint on `LessonRequest`
+2. Implement `EmbeddingService` using Spring AI's local ONNX transformers model (`all-MiniLM-L6-v2`, 384 dimensions). No external API calls
+3. Implement `ClaudeProvider` using Spring AI with Claude Sonnet 5.5 (`claude-sonnet-5-5`) — the sole production provider for lesson generation and the vision model for image text extraction. Enable Anthropic prompt caching for the system prompt and few-shot examples. Support the optional `validationErrors` repair hint on `LessonRequest`
 4. Implement `LocalLLMProvider` — calls local Ollama endpoint (for dev)
-5. Provider selection and fallback chain exactly as in 2.6: Gemini → validate → Sonnet 5.5 (with validator errors) → fail. Maximum 2 LLM calls per request; Resilience4j circuit breaker and per-provider timeouts from env vars
+5. Generation and retry flow exactly as in 2.6: Sonnet 5.5 → validate → one retry (with validator errors, or after backoff for transient errors) → fail. Maximum 2 LLM calls per request; Resilience4j circuit breaker and timeout from env vars; fail fast with `LLM_UNAVAILABLE` while the breaker is open (cache hits still served)
 6. Prompt template management (system prompt + user prompt, see section 6)
 7. Implement `LessonValidator` with every layer from 2.6 (parse, structure, canvas allow-list and bounds, text safety, LaTeX denylist, HTML stripping), returning machine-readable error lists. Also handle the `OUT_OF_SCOPE` response
 8. Cost estimation and logging per request (use @Slf4j)
@@ -1179,10 +1195,10 @@ Alerts go to email through Grafana alerting. Prometheus + Grafana run natively a
 10. RAG integration per the hardened flow in 6.3: verified rows only, similarity ≥ 0.95, identical numeric signature, unverified rows stored on a miss, `ask_count` tracking
 11. Image extraction service (3.1.1): check magic bytes, strip EXIF, call Sonnet 5.5 vision, return `{problemText, confidence, hasDiagram}`; `LOW` confidence raises `IMAGE_UNREADABLE`; never persist the image
 12. Prompt-injection hardening: wrap student text in `<problem>` tags (6.2) and apply system rules 9–10 (6.1)
-13. Metrics and logging per 8.4: lesson counters and latency, tokens, cost, fallback reason, validation failures, RAG lookup results, breaker state. Persist `source`, `fallback_used`, `fallback_reason`, `validation_attempts` and `generation_ms` on the lesson row
+13. Metrics and logging per 8.4: lesson counters and latency, tokens, cost, retry reason, validation failures, RAG lookup results and unverified backlog, breaker state. Persist `source`, `retried`, `retry_reason`, `validation_attempts` and `generation_ms` on the lesson row
 14. Integrate with Agent 2's rate limiter: reserve before generating, commit on success, release on any failure
 
-**Acceptance:** POST /api/v1/lessons/generate with a physics problem returns valid LessonResponse JSON. RAG cache hit returns instant response. All logging via SLF4J. Garbage JSON from Gemini triggers the Sonnet fallback and succeeds. If both providers fail, the API returns `LESSON_GENERATION_FAILED` and no quota is consumed. A problem that differs only in its numbers never returns a cached solution. A blurry image returns `IMAGE_UNREADABLE`.
+**Acceptance:** POST /api/v1/lessons/generate with a physics problem returns valid LessonResponse JSON. RAG cache hit returns instant response. All logging via SLF4J. Garbage JSON on the first attempt triggers a repair retry that succeeds. If both attempts fail, the API returns `LESSON_GENERATION_FAILED` and no quota is consumed. A problem that differs only in its numbers never returns a cached solution. A blurry image returns `IMAGE_UNREADABLE`.
 
 ---
 
@@ -1290,7 +1306,7 @@ Alerts go to email through Grafana alerting. Prometheus + Grafana run natively a
 6. Performance: lesson generation < 10s, canvas animation 60fps, page load < 3s
 7. Adversarial test suite (see section 8.2) — initial 50 edge cases
 8. Validator tests (2.6): one fixture per failure layer, including bad JSON, 2 and 8 steps, unknown action type, out-of-bounds coordinates, equation placed inside the drawing area, narration containing LaTeX characters, HTML/script injection, denylisted LaTeX, and two correct MCQ options
-9. Fallback chain tests with mocked providers: Gemini timeout/429/garbage → Sonnet succeeds; both fail → `LESSON_GENERATION_FAILED`; never more than 2 LLM calls; circuit breaker opens and closes; quota is not consumed on any failure
+9. Retry tests with a mocked provider: first call times out / returns 429 / returns garbage → second call succeeds (validator errors included in the repair prompt); both fail → `LESSON_GENERATION_FAILED`; never more than 2 LLM calls; breaker open → fail fast with `LLM_UNAVAILABLE` while cache hits still work; quota is not consumed on any failure
 10. RAG tests: identical problem hits only when `verified`; unverified rows are never served; same text with different numbers misses; `ask_count` increments
 11. Image tests: oversized file, wrong magic bytes, EXIF stripped, unreadable image returns `IMAGE_UNREADABLE`, image never written to disk
 12. Error contract tests: every code in 4.7 has an endpoint test asserting HTTP status and body shape, and that no stack trace, provider name or secret leaks
@@ -1319,13 +1335,13 @@ Alerts go to email through Grafana alerting. Prometheus + Grafana run natively a
 6. Log rotation config
 7. Monitoring script — disk, RAM, CPU, service health
 8. Deployment script (`scripts/deploy.sh`) — git pull → build → restart services
-9. Install Prometheus (port 9095, localhost only, 15-day retention) and Grafana (port 3100, behind nginx with auth) natively, scraping Spring Boot on :9091. Check ports with `lsof` first; Grafana's default 3000 is reserved
-10. Provision Grafana dashboards and the 8.4 alert rules as version-controlled files in `ops/grafana/`; email contact point from env vars
+9. Install Prometheus natively (port 9095, localhost only, 15-day retention) scraping Spring Boot on :9091. Check the port with `lsof` first. Do NOT install, move, restart or reconfigure Grafana: it already runs on this VPS and is shared (see 8.4)
+10. Create `ops/grafana/` (dashboard and alert-rule JSON) and `scripts/grafana-sync.sh`. Using `GRAFANA_URL` and `GRAFANA_API_TOKEN`, it creates the `PrepAI` folder, the `prepai-prometheus` data source, and the dashboards and alert rules (idempotent). It must only touch the `PrepAI` folder and its own data source, never other folders, data sources or the global notification policy
 11. Create `AUDIO_DIR` (owned by the app user, readable by nginx) and an nginx `/audio/` location with long cache headers
-12. Nginx limits: `client_max_body_size 8m` for `/api/v1/lessons/` (image uploads), `limit_req` zones for `/api/v1/auth/` and `/api/v1/lessons/`, and block `/actuator` plus the Prometheus and Grafana ports from the public internet
+12. Nginx limits: `client_max_body_size 8m` for `/api/v1/lessons/` (image uploads), `limit_req` zones for `/api/v1/auth/` and `/api/v1/lessons/`, and block `/actuator` and the Prometheus port from the public internet
 13. Logrotate for the JSON logs with 30-day retention (matches 2.7); log files not world-readable
 
-**Acceptance:** `./scripts/install.sh` on a fresh Debian VPS sets up everything. `./scripts/deploy.sh` deploys latest code with zero downtime. Grafana shows live metrics from Spring Boot, a test alert fires, and `/actuator` is not reachable from outside.
+**Acceptance:** `./scripts/install.sh` on a fresh Debian VPS sets up everything. `./scripts/deploy.sh` deploys latest code with zero downtime. The `PrepAI` folder in the existing Grafana shows live metrics from Spring Boot and a test alert fires. `/actuator` is not reachable from outside. The existing Grafana's PID, uptime and other dashboards are unchanged.
 
 ---
 
@@ -1340,7 +1356,8 @@ VPS (16GB RAM / 200GB Disk / Debian)
 ├── PostgreSQL 16 + pgvector extension
 ├── Redis 7
 ├── Nginx (reverse proxy + SSL)
-├── Prometheus :9095 + Grafana :3100 (metrics and alerts, native install)
+├── Prometheus :9095 (metrics; installed by PrepAI)
+├── Grafana :3000 (already running and shared, served at https://algorithmyc.com/gfn/; not managed by PrepAI)
 ├── VoiceStudio (local TTS server)
 ├── Xvfb :99 (virtual display for Chromium/testing)
 ├── Chromium (E2E testing)
@@ -1370,13 +1387,13 @@ REDIS_PORT=6379
 JWT_SECRET=<secure-256-bit>
 JWT_EXPIRY_HOURS=24
 
-# Gemini (Primary LLM)
-GEMINI_API_KEY=<key>
-GEMINI_MODEL=gemini-2.0-flash
-
-# Claude (Fallback LLM)
+# Claude (LLM for lessons and image extraction)
 CLAUDE_API_KEY=<key>
 CLAUDE_MODEL=claude-sonnet-5-5
+
+# Embeddings (local, in-process)
+EMBEDDING_MODEL=all-MiniLM-L6-v2
+EMBEDDING_DIMENSIONS=384
 
 # VoiceStudio
 VOICESTUDIO_API_URL=http://localhost:5050
@@ -1396,8 +1413,8 @@ SERVER_PORT=8085
 MANAGEMENT_PORT=9091
 
 # LLM resilience (see 2.6)
-LLM_PRIMARY_TIMEOUT_SECONDS=20
-LLM_FALLBACK_TIMEOUT_SECONDS=30
+LLM_TIMEOUT_SECONDS=30
+LLM_MAX_ATTEMPTS=2
 LLM_BREAKER_FAILURE_RATE=50
 LLM_BREAKER_OPEN_SECONDS=60
 
@@ -1407,6 +1424,8 @@ IMAGE_MAX_BYTES=5242880
 # RAG and quality (see 6.3, 8.1)
 RAG_MIN_SIMILARITY=0.95
 QUALITY_BATCH_SIZE=50
+QUALITY_SEED_SIZE=300
+VERIFIER_MODEL=claude-fable-5-1
 
 # Audio cache (see 4.5)
 AUDIO_DIR=/var/lib/prepai/audio
@@ -1429,7 +1448,8 @@ SIGNUPS_PER_IP_PER_HOUR=5
 
 # Observability (see 8.4)
 PROMETHEUS_PORT=9095
-GRAFANA_PORT=3100
+GRAFANA_URL=https://algorithmyc.com/gfn/
+GRAFANA_API_TOKEN=<service-account token limited to the PrepAI folder>
 ```
 
 ---
@@ -1481,8 +1501,8 @@ GRAFANA_PORT=3100
 | MRR target | ₹50,000 ($600) |
 | Answer accuracy (verified by Self-Evolving Agent) | >95% |
 | Lesson generation success rate (failures are not charged) | >99% |
-| Gemini validation-failure rate | <10% |
-| Sonnet fallback rate | <15% |
+| First-attempt validation-failure rate | <10% |
+| LLM retry rate | <15% |
 
 ---
 
@@ -1542,4 +1562,21 @@ Nightly (Ongoing):
 
 ---
 
-*End of specification v2.2. This document is the single source of truth for the AIDLC pipeline. All agents reference this document. Any deviation requires updating this spec first.*
+## 15. Pre-Launch TODO Checklist
+
+Open action items that need a person (mostly Krishna) rather than an agent. Update the Status column as items close.
+
+| ID | Action | Owner | Blocks | Status |
+|----|--------|-------|--------|--------|
+| TODO-1 | **Legal review of the privacy design (2.7) by counsel.** Cover DPDP Act duties for children's data (an acceptable method of verifiable guardian consent, data-fiduciary obligations), the Privacy Policy and Terms text, retention periods, breach-notification process and grievance contact. | Krishna → counsel | Public launch (any real user) | Open |
+| TODO-2 | **Review provider data terms.** Read Anthropic's API terms for data retention, use of API data for training, data location/transfer, and any zero-retention option. Do the same for Razorpay and the email provider. Reflect the findings in the Privacy Policy's processor list. | Krishna | Public launch | Open |
+| TODO-3 | **Validate the Razorpay payment flow:** webhook signature verification, idempotent webhook handling, failed or expired payments, and `plan_expires_at` behaviour. | Krishna | Paid plans | Open |
+| TODO-4 | **Validate LLM cost against the < $0.05 per session target.** Sonnet 5.5 is now the only provider. Use current published pricing and measured token counts (with prompt caching on), including image extraction. If over target, options are a higher cache hit rate, shorter outputs, or routing easy problems to a cheaper model behind the provider interface. | Krishna | Pricing and investor numbers | Deferred: Krishna will review later |
+| TODO-5 | **Set up PrepAI in the shared Grafana** (`https://algorithmyc.com/gfn/`): using the Grafana admin login (kept by Krishna and never written to the repo, this spec, env examples or logs), create a `PrepAI` folder and a service-account token limited to it, put the token in `GRAFANA_API_TOKEN`, choose the email route for alerts labelled `app=prepai`, and confirm login is required and anonymous access is off. | Krishna | `grafana-sync.sh` and alerting | Open |
+| TODO-6 | **Check embedding quality.** Test `all-MiniLM-L6-v2` on about 100 JEE/NEET paraphrase and near-miss pairs, and tune `RAG_MIN_SIMILARITY` (0.95 is a starting point). | Krishna / Agent 3 | Enabling the RAG cache | Open |
+| TODO-7 | **Choose the domain and email (SMTP) provider.** Needed for `APP_BASE_URL`, CORS, verification emails and guardian-consent emails. | Krishna | Registration flow in production | Open |
+| TODO-8 | **Run the pre-launch cache seed** (`QUALITY_SEED_SIZE`) once the verifier is built (6.3 cold start). | Krishna | Nothing; improves day-1 cost | Open |
+
+---
+
+*End of specification v2.3. This document is the single source of truth for the AIDLC pipeline. All agents reference this document. Any deviation requires updating this spec first.*
