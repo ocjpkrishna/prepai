@@ -1,5 +1,5 @@
 # Local development profile (default). Start with: ./gradlew bootRun
-# Expects PostgreSQL 16 + pgvector on 5432 and Redis on 6379. Nothing here is a real secret.
+# Expects PostgreSQL 17 + pgvector on 5432 and Redis on 6379. Nothing here is a real secret.
 server:
   port: ${SERVER_PORT:8085}
   address: ${SERVER_ADDRESS:127.0.0.1}

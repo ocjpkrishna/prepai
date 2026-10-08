@@ -1,7 +1,7 @@
 # PrepAI — Product Specification Document
 ## AI Whiteboard Tutor for Indian Students
 
-**Version:** 2.5
+**Version:** 2.6
 **Date:** October 8, 2026
 **Author:** Krishna (Ascorp Softwares)
 **Status:** Ready for AIDLC + SEF Pipeline
@@ -13,6 +13,7 @@
 - v2.3 — Gemini dropped: Claude Sonnet 5.5 is the sole MVP LLM provider (retry-once pipeline instead of provider fallback), local ONNX embeddings (384 dims), Fable 5.1 as the independent verifier, cold-start plan for the verified-only RAG cache, shared existing Grafana used instead of installing one, and a pre-launch TODO checklist (section 15).
 - v2.4 — Spring Boot 4.1.1 (project generated with Spring Initializr, Spring AI 2.0.1). Dependency list reconciled with `build.gradle`: springdoc, jjwt, logstash-logback-encoder, Spring AI vector stores and the GraalVM native plugin dropped; JWT and Google sign-in via Spring Security's OAuth2 resource server; pgvector mapped with `hibernate-vector`; Razorpay SDK and jsoup added. Mermaid diagrams added throughout.
 - v2.5 — Claude Sonnet 5.5 on every agent card (DeepSeek removed). Spring profiles: `application.yaml` (shared), `application-local.yml` (default) and `application-prod.yml`, with ports, binds and secrets defined in the new section 10.4.
+- v2.6 — PostgreSQL 17.11 + pgvector 0.8.0 and Redis 8.0.2 installed on the VPS; spec versions updated from PostgreSQL 16 and Redis 7 to match the Debian 13 packages.
 
 ---
 
@@ -151,8 +152,8 @@ flowchart TB
     end
 
     subgraph stores["Data stores"]
-        pg[("PostgreSQL 16 + pgvector<br/>users, lessons, RAG")]
-        redis[("Redis 7<br/>rate limits, lesson cache")]
+        pg[("PostgreSQL 17 + pgvector<br/>users, lessons, RAG")]
+        redis[("Redis 8<br/>rate limits, lesson cache")]
         audio[["Audio cache directory"]]
     end
 
@@ -198,8 +199,8 @@ flowchart TB
 | Backend | Java 21 + Spring Boot 4.1.1 (Spring Framework 7, Spring AI 2.0.1) | Krishna's core expertise. Project generated with Spring Initializr (group `com.ascorp`, package `com.ascorp.prepai`) |
 | Build Tool | Gradle (via `./gradlew` wrapper) | Standard for Spring Boot; wrapper pins the version so CI and VPS builds match |
 | Auth | Spring Security + JWT via the OAuth2 resource server (Nimbus) | Standard, stateless. Same library issues PrepAI tokens and verifies Google ID tokens |
-| Database | PostgreSQL 16 + pgvector | Users, lessons, usage tracking + RAG vector search |
-| Cache | Redis 7 | Rate limiting and lesson caching only. Auth is stateless JWT, so no server-side session state is stored |
+| Database | PostgreSQL 17 + pgvector | Users, lessons, usage tracking + RAG vector search |
+| Cache | Redis 8 | Rate limiting and lesson caching only. Auth is stateless JWT, so no server-side session state is stored |
 | LLM | Claude Sonnet 5.5 `claude-sonnet-5-5` (sole MVP provider) | Strong STEM reasoning and vision (image input) with one consistent behaviour. The provider interface allows adding others later |
 | LLM Integration | Spring AI | Anthropic client + pgvector support in Java |
 | Embeddings | Spring AI ONNX transformers, `all-MiniLM-L6-v2` (384 dims), in-process | Anthropic has no embeddings API. A local model adds no API cost and keeps cached problem text on the VPS |
@@ -269,7 +270,7 @@ Decision (2026-10-08): Gemini was dropped from the MVP. Other providers (for exa
 
 **Ports 8080, 9000, 3000, 4200 are RESERVED** — already in use by other services on VPS. The DevOps agent must check port availability with `lsof -i :PORT` before binding and update config files if conflicts are detected.
 
-Both Spring profiles use 8085 (app) and 9091 (management), bound to 127.0.0.1 (see 10.4). Do not run a local `bootRun` while the production service runs on the same host; override with `SERVER_PORT` and `MANAGEMENT_PORT` if both are needed. Port check on this VPS on 2026-10-08: 8085, 9091, 9095, 5050 and 4300 were free. PostgreSQL (5432) and Redis (6379) were not running yet. Redis 8.0.2 (Debian package) was then installed the same day: listening on 127.0.0.1 and ::1 only, `maxmemory 256mb` with `volatile-lru` (every PrepAI key has a TTL), enabled under systemd. **PostgreSQL is not installed on this VPS** (no service, no binaries, nothing on 5432), so it still has to be installed before the backend can start. Note that Debian 13 (trixie) packages PostgreSQL 17, not 16: either use 17 with `postgresql-17-pgvector` or add the PGDG repository for 16. The spec's "PostgreSQL 16" should be settled before `install.sh` is written.
+Both Spring profiles use 8085 (app) and 9091 (management), bound to 127.0.0.1 (see 10.4). Do not run a local `bootRun` while the production service runs on the same host; override with `SERVER_PORT` and `MANAGEMENT_PORT` if both are needed. Port check on this VPS on 2026-10-08: 8085, 9091, 9095, 5050 and 4300 were free. PostgreSQL (5432) and Redis (6379) were not running yet. Redis 8.0.2 (Debian package) was then installed the same day: listening on 127.0.0.1 and ::1 only, `maxmemory 256mb` with `volatile-lru` (every PrepAI key has a TTL), enabled under systemd. PostgreSQL was not installed on this VPS at first (MongoDB 8.0 and QuestDB 8.1.1 are also present, but they are shared with other services and are not used by PrepAI). On the same day **PostgreSQL 17.11 with pgvector 0.8.0** was installed from the Debian packages (`postgresql-17`, `postgresql-17-pgvector`): cluster `17/main`, listening on 127.0.0.1 and ::1 only. The spec uses 17 because Debian 13 packages 17 and not 16. A development database `prepai` was created with an owner role `prepai` (the password matches the local profile defaults) and the `vector` extension pre-installed by a superuser, because the application role is not a superuser and cannot create the extension itself. The production database and role are created later by `install.sh` with a generated password.
 
 ### 2.6 Lesson Validation & Retry Pipeline
 
@@ -1492,7 +1493,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 3. Scaffold Angular 18 project (frontend/)
    - Dependencies: @angular/material, konva, ng2-konva, katex
    - `angular.json`: serve port 4300
-4. VPS setup script (`scripts/install.sh`): PostgreSQL 16 + pgvector extension + Redis 7 + nginx + VoiceStudio
+4. VPS setup script (`scripts/install.sh`): PostgreSQL 17 + pgvector extension + Redis 8 + nginx + VoiceStudio. It must be idempotent and skip anything already installed (PostgreSQL 17 and Redis 8 are already on this VPS). It creates the production database and role with a generated password, and installs the `vector` extension as a superuser, since the application role cannot. It never touches the shared MongoDB or QuestDB
 5. GitHub Actions CI: build → test → deploy to VPS
 6. `.env.example` with all required environment variables (including the LLM resilience, image, audio, email, privacy and observability variables in 10.3)
 7. Nginx config template for reverse proxy
@@ -1699,8 +1700,8 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 VPS (16GB RAM / 200GB Disk / Debian)
 ├── Java 21 (SDKMAN)
 ├── Node.js 18+ (nvm)
-├── PostgreSQL 16 + pgvector extension
-├── Redis 7
+├── PostgreSQL 17 + pgvector extension
+├── Redis 8
 ├── Nginx (reverse proxy + SSL)
 ├── Prometheus :9095 (metrics; installed by PrepAI)
 ├── Grafana :3000 (already running and shared, served at https://algorithmyc.com/gfn/; not managed by PrepAI)
@@ -1724,8 +1725,8 @@ flowchart LR
         static["Angular static files"]
         app["Spring Boot app :8085<br/>systemd service"]
         mgmt["Actuator :9091<br/>not exposed by nginx"]
-        pg[("PostgreSQL 16 + pgvector :5432")]
-        redis[("Redis 7 :6379")]
+        pg[("PostgreSQL 17 + pgvector :5432")]
+        redis[("Redis 8 :6379")]
         vs["VoiceStudio :5050<br/>systemd service"]
         audio[["Audio cache directory"]]
         prom["Prometheus :9095<br/>localhost only"]
