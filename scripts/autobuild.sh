@@ -151,7 +151,7 @@ Read CLAUDE.md and BUILD-RUNBOOK.md first, then follow the runbook: prepai/ARCHI
 
 You are running unattended and nobody will answer questions. Do not ask any. Decide using BUILD-DECISIONS.md. If a choice is not covered there, take the simplest option that matches the spec and add one line to "Decisions made during the build". If something needs a person (a real key, a legal or business decision), use a fake or a feature flag, keep going, and add it to "Needs the user".
 
-Run Gradle from the repository root as: nice -n 15 ./prepai/gradlew -p prepai -q <tasks>. Do not leave any server or background process running.
+Run Gradle from the repository root as: nice -n 15 ./prepai/gradlew -p prepai -q <tasks>, exactly in that form, as a single command: no timeout wrapper, no subshell, no shell loop, no pipe into other tools (the output is already quiet). Use the Read, Grep and Glob tools instead of cat, sed or find. Anything outside the permission list is refused, not asked: if a command is denied, use a plainer form instead of retrying the same one. Do not leave any server or background process running.
 
 Finish with a checkpoint: ./gradlew check green (frontend: lint, tests and build), the module's MODULE.md true, row ${id} ticked [x] in BUILD-RUNBOOK.md, one handoff line added, and a commit (git add with explicit paths, a feat/fix/test/docs/chore message, never git push). If you cannot reach a green checkpoint, leave the row unticked, change nothing outside the row's scope, and explain why in the handoff line.
 

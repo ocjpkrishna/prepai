@@ -24,6 +24,7 @@ AI whiteboard tutor for Indian students (JEE, NEET, boards). Spring Boot 4.1 / J
 - `nice -n 15 ./prepai/gradlew -p prepai -q check`: all quality gates.
 - `nice -n 15 ./prepai/gradlew -p prepai -q test --tests '*SomeTest'`: one test class.
 - `nice -n 15 ./prepai/gradlew -p prepai bootRun`: starts the app with the `local` profile on port 8085 (needs PostgreSQL 17 + pgvector and Redis 8, both installed on this VPS; stop it again when done).
+- In unattended runs keep shell commands plain: one command per call, no `timeout` wrapper, subshell or loop around Gradle, and use the Read, Grep and Glob tools instead of `cat`, `sed` or `find`.
 - The VPS is shared: always `nice` and `-q`; memory limits are in `prepai/gradle.properties`; one Gradle process at a time.
 - Unattended runs (`scripts/autobuild.sh`): nobody answers questions. Follow `BUILD-DECISIONS.md`, log new choices there, put anything only a person can supply under "Needs the user", and never stop to ask.
 
@@ -38,7 +39,7 @@ AI whiteboard tutor for Indian students (JEE, NEET, boards). Spring Boot 4.1 / J
 - PostgreSQL 17 and Redis 8 belong to PrepAI. MongoDB, QuestDB, Grafana and the trading services belong to other projects: read-only at most, never modify, restart or write to them (see also the user-level rules).
 - Never use `sudo` without asking. Check a port with `lsof` before binding it. PrepAI uses 8085 (app), 9091 (management), 9095 (Prometheus).
 - Never write credentials into files, specs or commits. Secrets come from the environment only.
-- Commit after each finished feature or bug fix, one logical change per commit, with a message like `feat(<module>): ...` or `fix(<module>): ...` (the user approved this on 2026-10-08). A bug gets a failing test first, then the fix. Never push to `main` and never rewrite earlier commits without asking (a cloud session pushes only its own `row-<id>` branch).
+- Commit after each finished feature or bug fix, one logical change per commit, with a message like `feat(<module>): ...` or `fix(<module>): ...` (the user approved this on 2026-10-08). A bug gets a failing test first, then the fix. Commit locally. Never push anything from this VPS until the user says "push", and never rewrite earlier commits without asking (a cloud session pushes only its own `row-<id>` branch; that is how it hands its work over).
 
 ## Cloud sessions (Claude Code on the web)
 A cloud session works on a GitHub clone and has none of this VPS's services (no PostgreSQL, Redis or Docker).

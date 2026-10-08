@@ -1520,7 +1520,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 - **IDE:** VS Code Remote SSH + Continue IDE on VPS
 - **Primary Model:** Claude Sonnet 5.5 for every agent (several Claude Code sessions in parallel terminals)
 - **Orchestration:** SEF for scaffolding → AIDLC for features
-- **Repo:** Monorepo — `prepai/` with `backend/` and `frontend/` directories
+- **Repo:** Monorepo — `prepai/` (the Spring Boot backend, kept in place) and `frontend/` (Angular) directories at the repository root
 - **VPS:** 16GB RAM, 200GB disk, Debian (no Docker)
 
 ### 9.1.1 Code Structure & Conventions (mandatory for every agent)

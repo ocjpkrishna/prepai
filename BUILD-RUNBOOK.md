@@ -41,7 +41,7 @@ In an interactive session Claude cannot see the plan usage or change its own mod
 
 | # | Row | Area | Model | Done |
 |---|-----|------|-------|------|
-| 1 | Agent 1, rest | `frontend/` scaffold (Angular, Material, Konva, KaTeX), `scripts/install.sh`, CI workflow, `.env.example`, nginx template, `MODULE.md` stubs for frontend and ops | Haiku | [ ] |
+| 1 | Agent 1, rest | `frontend/` scaffold (Angular, Material, Konva, KaTeX), `scripts/install.sh`, CI workflow, `.env.example`, nginx template, `MODULE.md` stubs for frontend and ops | Haiku | [x] |
 | 2 | common | errors, shared enums, lesson contract records, config beans | Haiku | [ ] |
 | 3 | account/auth | register, login, refresh rotation, Google sign-in, security config | ★ Sonnet | [ ] |
 | 4 | account/user + privacy | profile, export, deletion, consent, purge jobs | Haiku | [ ] |
@@ -101,3 +101,4 @@ Paste this, nothing more:
 One line per checkpoint: date, row, what is done, what is next, any problem.
 
 - 2026-10-08, setup: spec v2.9, module structure and `MODULE.md` files, quality gates (Checkstyle, ArchUnit, JaCoCo), build and profiles, PostgreSQL 17 and Redis 8 installed. No business code yet. Next: row 1.
+- 2026-10-08, row 1 done (built locally by a subagent on Haiku, verified by the maintainer): Angular app in `frontend/` (Material, Konva, KaTeX, Playwright; production build and `ng test` pass), `scripts/install.sh` (idempotent, not yet run), nginx template, `.env.example`, CI workflow (deploy off until row 12), MODULE.md stubs for the frontend features and `ops/`. Open: frontend lint (ESLint) is not configured; VoiceStudio has no source in the repo. Next: row 2.

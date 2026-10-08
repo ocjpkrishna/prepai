@@ -13,12 +13,18 @@ Unattended sessions cannot ask questions, so every choice that would normally be
 8. **Gradle.** Run `nice -n 15 ./prepai/gradlew -p prepai -q <tasks>` from the repo root (memory limits are in `prepai/gradle.properties`). One Gradle process at a time.
 9. **No long-running processes.** Do not leave a server, a Gradle daemon or a browser running after a step. Ports 8085, 9091 and 9095 stay free except during a short test.
 10. **Spec edits.** The spec is read-only during the build except for the version line, the changelog and corrections found while building; log each correction below.
-11. **Commits.** One per finished feature or bug fix, `git add` with explicit paths (never `git add -A`), messages `feat(<module>): ...`, `fix(<module>): ...`, `test(...)`, `docs(...)`, `chore(...)`. Never push to `main` (local unattended runs never push at all; cloud sessions push only their own `row-<id>` branch).
+11. **Commits.** One per finished feature or bug fix, `git add` with explicit paths (never `git add -A`), messages `feat(<module>): ...`, `fix(<module>): ...`, `test(...)`, `docs(...)`, `chore(...)`. Commit locally and never push from the VPS until the user says "push" (local unattended runs never push at all; cloud sessions push only their own `row-<id>` branch, which is how they hand work over).
 12. **Shared VPS.** No `sudo`, no access to MongoDB, QuestDB, Grafana or the trading services, nothing outside the repo directory. `creds.md` in the repo root is off limits and is git-ignored.
 13. **Cloud sessions.** The repository lives at `github.com/ocjpkrishna/prepai` (private), and part of the build runs in cloud sessions on the included credit. Cloud sandboxes have no PostgreSQL, Redis or Docker, so any test that needs one is tagged `@Tag("db")` and skipped with `-PskipDbTests`; those tests run on the VPS (database `prepai_test`) before a row is accepted. Cloud sessions work on a `row-<id>` branch and open a pull request, never touch `BUILD-RUNBOOK.md`, and never push to `main`.
 
 ## Decisions made during the build
 (One line each: date, row, decision, reason.)
+- 2026-10-08, row 1: Angular is the current stable `ng new` (22.2), not 18: decision 3 chose it and spec 9.2 only asks for "18+". Test runner is the generated Vitest; no ESLint (not in the `ng new` default), so the frontend "lint" gate is open (see handoff).
+- 2026-10-08, row 1: production database and role are `prepai_prod`, not `prepai`, because this VPS already has the development database `prepai` with role `prepai`.
+- 2026-10-08, row 1: `scripts/install.sh` installs only missing packages and only verifies Java 21, Node 18+ and Redis, which are shared with the trading services. It never installs or upgrades them.
+- 2026-10-08, row 1: the nginx site is rendered only after the Let's Encrypt certificate exists (`certbot certonly --webroot`), so the first run never fails on a missing certificate.
+- 2026-10-08, row 1: the CI deploy job is off until the repository variable `DEPLOY_ENABLED` is `true`, because `scripts/deploy.sh` comes in row 12. Backend CI runs with `-PskipDbTests`.
+- 2026-10-08, row 1: spec 9.1 repo-layout sentence corrected to `prepai/` plus `frontend/` (decision 1); `ARCHITECTURE.md` frontend row updated to match.
 
 ## Needs the user
 Collected here so nobody has to be interrupted. Review after the build.
@@ -36,3 +42,6 @@ Collected here so nobody has to be interrupted. Review after the build.
 | Embedding quality check | Threshold tuning on real paraphrases (TODO-6) |
 | Cache seed run | After the verifier exists (TODO-8) |
 | Angular version check | Confirm the version `ng new` picked suits the team |
+| VoiceStudio source and install | `install.sh` only reports it; the TTS server's source is not in this repository (spec 10.1) |
+| CI secrets and deploy switch | `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS` secrets and the `DEPLOY_ENABLED` variable, set after row 12 |
+| Production secrets file | `install.sh` generates `DB_PASSWORD` and `JWT_SECRET` in `/etc/prepai/prepai.env`; the operator fills the rest (Google, Claude, Razorpay, SMTP) |

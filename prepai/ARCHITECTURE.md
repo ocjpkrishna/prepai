@@ -52,7 +52,7 @@ A lesson request enters `lesson`, which asks `account` if the student may genera
 | `prepai/` (this folder) | The Spring Boot 4.1.1 / Java 21 / Gradle backend |
 | `prepai/src/main/resources/` | `application.yaml`, `application-local.yml`, `application-prod.yml`, Flyway migrations in `db/migration` |
 | `prepai/config/checkstyle/` | The code-quality limits |
-| `frontend/` | Angular 18 app (created by Agent 1) |
+| `frontend/` | Angular app, current stable `ng new` (created by Agent 1) |
 | `scripts/`, `nginx/`, `ops/` | VPS setup, deployment, reverse proxy, monitoring (Agents 1 and 9) |
 
 ## Everyday commands

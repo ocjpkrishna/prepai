@@ -30,7 +30,17 @@
       "Bash(./scripts/spec-section.sh *)",
       "Bash(psql *)",
       "Bash(redis-cli *)",
-      "Bash(lsof *)"
+      "Bash(lsof *)",
+      "Bash(timeout *)",
+      "Bash(echo *)",
+      "Bash(date *)",
+      "Bash(grep *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(cut *)",
+      "Bash(tr *)",
+      "Bash(git show *)",
+      "Bash(git branch *)"
     ],
     "deny": [
       "Bash(sudo *)",
@@ -69,7 +79,16 @@
       "Edit(//home/krishna/Workspace/perpai/**/.env)",
       "Edit(//home/krishna/Workspace/perpai/.git/**)",
       "Edit(//home/krishna/Workspace/perpai/.claude/**)",
-      "Edit(//home/krishna/Workspace/perpai/scripts/autobuild*)"
+      "Edit(//home/krishna/Workspace/perpai/scripts/autobuild*)",
+      "Bash(*creds.md*)",
+      "Bash(* /etc*)",
+      "Bash(* /opt*)",
+      "Bash(* /root*)",
+      "Bash(* /var*)",
+      "Bash(*~/.ssh*)",
+      "Bash(*/.ssh/*)",
+      "Bash(*.credentials.json*)",
+      "Bash(*.claude.json*)"
     ]
   },
   "disableClaudeAiConnectors": true
