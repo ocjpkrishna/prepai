@@ -1,7 +1,7 @@
 # PrepAI — Product Specification Document
 ## AI Whiteboard Tutor for Indian Students
 
-**Version:** 2.3
+**Version:** 2.5
 **Date:** October 8, 2026
 **Author:** Krishna (Ascorp Softwares)
 **Status:** Ready for AIDLC + SEF Pipeline
@@ -11,6 +11,8 @@
 - v2.1 — Stateless JWT (no Redis sessions), daily-only usage limits, Claude Sonnet 5.5 as fallback, isolated Python Manim service, Gradle build tool.
 - v2.2 — LLM output validation + Sonnet 5.5 fallback pipeline (2.6), privacy/DPDP section (2.7), image input rules (3.1.1), unified error model (4.7), TTS audio caching (4.5), hardened RAG cache (6.3), observability (8.4). All nine agent task cards updated accordingly.
 - v2.3 — Gemini dropped: Claude Sonnet 5.5 is the sole MVP LLM provider (retry-once pipeline instead of provider fallback), local ONNX embeddings (384 dims), Fable 5.1 as the independent verifier, cold-start plan for the verified-only RAG cache, shared existing Grafana used instead of installing one, and a pre-launch TODO checklist (section 15).
+- v2.4 — Spring Boot 4.1.1 (project generated with Spring Initializr, Spring AI 2.0.1). Dependency list reconciled with `build.gradle`: springdoc, jjwt, logstash-logback-encoder, Spring AI vector stores and the GraalVM native plugin dropped; JWT and Google sign-in via Spring Security's OAuth2 resource server; pgvector mapped with `hibernate-vector`; Razorpay SDK and jsoup added. Mermaid diagrams added throughout.
+- v2.5 — Claude Sonnet 5.5 on every agent card (DeepSeek removed). Spring profiles: `application.yaml` (shared), `application-local.yml` (default) and `application-prod.yml`, with ports, binds and secrets defined in the new section 10.4.
 
 ---
 
@@ -62,7 +64,7 @@ Unlike chatbot-style AI tutors (EaseLearn, Edza AI) that dump text answers, Prep
           │ HTTP/WebSocket
           ▼
 ┌──────────────────────────────────────────────────────────────┐
-│              BACKEND (Spring Boot 3.x — Port 8085)            │
+│              BACKEND (Spring Boot 4.x — Port 8085)            │
 │              Management Port: 9091                            │
 │                                                               │
 │  ┌──────────┐  ┌──────────────┐  ┌────────────────────────┐  │
@@ -113,6 +115,78 @@ Unlike chatbot-style AI tutors (EaseLearn, Edza AI) that dump text answers, Prep
                               └──────────────────────────────┘
 ```
 
+**Diagram (Mermaid):**
+
+```mermaid
+flowchart TB
+    user(["Student browser"])
+
+    subgraph client["Client - Angular 18 app (dev port 4300)"]
+        direction LR
+        ui["UI layer"]
+        wb["Konva.js whiteboard<br/>+ KaTeX equations"]
+        ttsc["TTS service<br/>audio playback"]
+        ui --> wb
+        ui --> ttsc
+    end
+
+    nginx["Nginx 80/443<br/>SSL, static Angular files, reverse proxy"]
+
+    subgraph backend["Spring Boot 4.1 - port 8085, management 9091"]
+        direction TB
+        auth["Auth and User API<br/>JWT, consent, export and delete"]
+        sub["Subscription API<br/>Razorpay"]
+        orch["Lesson Orchestrator"]
+        limiter["Usage tracking<br/>and rate limiter"]
+        llm["LLM Service<br/>ClaudeProvider, LocalLLMProvider"]
+        valid["Lesson Validator"]
+        rag["RAG Service"]
+        embed["Embedding Service<br/>local ONNX, 384 dims"]
+        vsc["VoiceStudio client<br/>audio cache, warm-up"]
+        orch --> limiter
+        orch --> rag
+        orch --> llm
+        orch --> valid
+        rag --> embed
+    end
+
+    subgraph stores["Data stores"]
+        pg[("PostgreSQL 16 + pgvector<br/>users, lessons, RAG")]
+        redis[("Redis 7<br/>rate limits, lesson cache")]
+        audio[["Audio cache directory"]]
+    end
+
+    subgraph ext["External and local services"]
+        claude["Anthropic API<br/>Claude Sonnet 5.5<br/>lessons + image extraction"]
+        vs["VoiceStudio :5050<br/>local TTS"]
+        razor["Razorpay"]
+        smtp["SMTP provider"]
+        ollama["Ollama<br/>dev and testing only"]
+    end
+
+    subgraph obs["Observability"]
+        prom["Prometheus :9095"]
+        graf["Shared Grafana :3000<br/>PrepAI folder"]
+    end
+
+    user --> client
+    client -->|"HTTPS and WebSocket"| nginx
+    nginx -->|"/api/ and /ws/"| backend
+    nginx -->|"/audio/"| audio
+
+    backend --> pg
+    backend --> redis
+    auth --> smtp
+    llm --> claude
+    llm -.-> ollama
+    sub --> razor
+    vsc --> vs
+    vsc --> audio
+
+    backend -->|"metrics on :9091"| prom
+    prom --> graf
+```
+
 ### 2.2 Tech Stack
 
 | Layer | Technology | Rationale |
@@ -121,15 +195,15 @@ Unlike chatbot-style AI tutors (EaseLearn, Edza AI) that dump text answers, Prep
 | Canvas | Konva.js | High-performance 2D canvas rendering, animation support |
 | Math Rendering | KaTeX | Fastest LaTeX renderer for browser, exam-quality equations |
 | TTS | VoiceStudio (local) | Free, 646 languages, Hindi support, voice cloning, zero API cost |
-| Backend | Java 21 + Spring Boot 3.x | Krishna's core expertise |
+| Backend | Java 21 + Spring Boot 4.1.1 (Spring Framework 7, Spring AI 2.0.1) | Krishna's core expertise. Project generated with Spring Initializr (group `com.ascorp`, package `com.ascorp.prepai`) |
 | Build Tool | Gradle (via `./gradlew` wrapper) | Standard for Spring Boot; wrapper pins the version so CI and VPS builds match |
-| Auth | Spring Security + JWT | Standard, stateless |
+| Auth | Spring Security + JWT via the OAuth2 resource server (Nimbus) | Standard, stateless. Same library issues PrepAI tokens and verifies Google ID tokens |
 | Database | PostgreSQL 16 + pgvector | Users, lessons, usage tracking + RAG vector search |
 | Cache | Redis 7 | Rate limiting and lesson caching only. Auth is stateless JWT, so no server-side session state is stored |
 | LLM | Claude Sonnet 5.5 `claude-sonnet-5-5` (sole MVP provider) | Strong STEM reasoning and vision (image input) with one consistent behaviour. The provider interface allows adding others later |
 | LLM Integration | Spring AI | Anthropic client + pgvector support in Java |
 | Embeddings | Spring AI ONNX transformers, `all-MiniLM-L6-v2` (384 dims), in-process | Anthropic has no embeddings API. A local model adds no API cost and keeps cached problem text on the VPS |
-| RAG | pgvector (PostgreSQL extension) | No new database, stays in Java ecosystem |
+| RAG | pgvector (PostgreSQL extension), mapped with Hibernate `hibernate-vector` | No new database, stays in Java ecosystem. Spring AI's own vector stores are not used because the custom `problem_embeddings` schema (`verified`, `numeric_signature`, `ask_count`) does not fit them |
 | Deployment | Native on VPS (no Docker) | 16GB RAM — every MB matters |
 | CI/CD | GitHub Actions | Free for public/private repos |
 
@@ -139,16 +213,19 @@ Unlike chatbot-style AI tutors (EaseLearn, Edza AI) that dump text answers, Prep
 |---------|---------|
 | Lombok | Boilerplate reduction (@Data, @Builder, @Slf4j) |
 | SLF4J + Logback | Structured logging |
-| MapStruct | DTO ↔ Entity mapping (zero reflection, compile-time) |
+| MapStruct + lombok-mapstruct-binding | DTO ↔ Entity mapping (zero reflection, compile-time); the binding makes it work with Lombok |
 | Flyway | Database migration versioning |
 | Spring AI | LLM API integration (Claude) and local ONNX embeddings |
 | Spring Validation | Request validation (@Valid, @NotBlank) |
-| Spring Security + JWT | Auth with stateless tokens |
-| Jackson | JSON serialization/deserialization |
-| springdoc-openapi | Auto-generated API docs (Swagger UI) |
-| Resilience4j | Circuit breaker and timeouts around LLM providers |
+| Spring Security + OAuth2 resource server (Nimbus JWT) | Stateless JWTs and Google ID-token verification |
+| Jackson | JSON serialization/deserialization (Jackson 3 is the Spring Boot 4 default) |
+| Hibernate Vector (`hibernate-vector`) | Maps pgvector columns and cosine-distance queries in JPA |
+| Razorpay Java SDK (`razorpay-java`) | Checkout, subscriptions and webhook signature verification |
+| jsoup | Strips HTML/script from LLM output (validator text-safety layer) |
+| Testcontainers | PostgreSQL (with pgvector) and Redis for integration tests |
+| Resilience4j (`resilience4j-spring-boot4`) | Circuit breaker and timeouts around the LLM provider (annotations need `spring-boot-starter-aspectj`) |
 | Micrometer + Prometheus registry | Metrics exposed at `:9091/actuator/prometheus` |
-| logstash-logback-encoder | JSON structured logs with trace IDs |
+| Spring Boot structured logging (`logging.structured.format.console=logstash`) | JSON logs with trace IDs, no extra library needed |
 | Spring Mail | Email verification and guardian-consent emails |
 
 **IMPORTANT: All agents and tooling are written in Java. No Python in the main codebase.** VoiceStudio is called via REST API from Java. Any utility scripts use bash, not Python.
@@ -192,6 +269,8 @@ Decision (2026-10-08): Gemini was dropped from the MVP. Other providers (for exa
 
 **Ports 8080, 9000, 3000, 4200 are RESERVED** — already in use by other services on VPS. The DevOps agent must check port availability with `lsof -i :PORT` before binding and update config files if conflicts are detected.
 
+Both Spring profiles use 8085 (app) and 9091 (management), bound to 127.0.0.1 (see 10.4). Do not run a local `bootRun` while the production service runs on the same host; override with `SERVER_PORT` and `MANAGEMENT_PORT` if both are needed. Port check on this VPS on 2026-10-08: 8085, 9091, 9095, 5050 and 4300 were free. PostgreSQL (5432) and Redis (6379) were not running yet. Redis 8.0.2 (Debian package) was then installed the same day: listening on 127.0.0.1 and ::1 only, `maxmemory 256mb` with `volatile-lru` (every PrepAI key has a TTL), enabled under systemd. **PostgreSQL is not installed on this VPS** (no service, no binaries, nothing on 5432), so it still has to be installed before the backend can start. Note that Debian 13 (trixie) packages PostgreSQL 17, not 16: either use 17 with `postgresql-17-pgvector` or add the PGDG repository for 16. The spec's "PostgreSQL 16" should be settled before `install.sh` is written.
+
 ### 2.6 Lesson Validation & Retry Pipeline
 
 LLM output is untrusted. Every response, from any provider, passes through `LessonValidator` before it is stored, cached, or sent to a client.
@@ -211,6 +290,40 @@ A response of `{ "error": "OUT_OF_SCOPE" }` (see 6.1) is mapped to `PROBLEM_OUT_
 1. Claude Sonnet 5.5 (`claude-sonnet-5-5`) is called with timeout `LLM_TIMEOUT_SECONDS`. The long, stable system prompt and any few-shot examples use Anthropic prompt caching to reduce cost and latency.
 2. If the call fails with a transient error (timeout, HTTP 429/5xx, overloaded) or the response fails validation, it is retried once. Transient errors wait a short backoff first (honouring `Retry-After`). For validation failures, the original prompt is re-sent together with the validator's error list (`LessonRequest.validationErrors`, set only on this retry) so the model repairs the problem instead of repeating it.
 3. If the second attempt also fails, the request fails with `LESSON_GENERATION_FAILED` (502), or `LLM_UNAVAILABLE` (503) when the cause is the provider being unavailable. Nothing is stored and the student's daily quota is not consumed.
+
+**Flow diagram (Mermaid):**
+
+```mermaid
+flowchart TD
+    req(["POST /lessons/generate"]) --> gate{"Email verified and<br/>guardian consent OK?"}
+    gate -- no --> errGate["403 EMAIL_NOT_VERIFIED<br/>or CONSENT_REQUIRED"]
+    gate -- yes --> reserve{"Reserve a daily session<br/>in Redis"}
+    reserve -- "limit reached" --> errLimit["429 DAILY_LIMIT_REACHED"]
+    reserve -- ok --> isImg{"Input type IMAGE?"}
+    isImg -- yes --> extract["Sonnet 5.5 vision<br/>extracts the problem text"]
+    extract --> conf{"Confidence LOW?"}
+    conf -- yes --> errImg["422 IMAGE_UNREADABLE<br/>release reservation"]
+    conf -- no --> rcache
+    isImg -- no --> rcache{"Redis exact-match<br/>cache hit?"}
+    rcache -- hit --> deliver
+    rcache -- miss --> ragq{"RAG hit?<br/>verified, similarity ≥ 0.95,<br/>same numbers"}
+    ragq -- hit --> deliver
+    ragq -- miss --> brk{"Circuit breaker open?"}
+    brk -- open --> errUnavail["503 LLM_UNAVAILABLE<br/>release reservation"]
+    brk -- closed --> call1["Attempt 1: call Sonnet 5.5"]
+    call1 --> scope{"Model answered<br/>OUT_OF_SCOPE?"}
+    scope -- yes --> errScope["422 PROBLEM_OUT_OF_SCOPE<br/>release reservation"]
+    scope -- no --> valid1{"Valid response?"}
+    valid1 -- yes --> store
+    valid1 -- "no: validation failed" --> call2["Attempt 2: repair prompt<br/>with the validator errors"]
+    valid1 -- "no: timeout, 429 or 5xx" --> call2b["Attempt 2: retry after backoff"]
+    call2 --> valid2{"Valid response?"}
+    call2b --> valid2
+    valid2 -- yes --> store
+    valid2 -- no --> errGen["502 LESSON_GENERATION_FAILED<br/>release reservation"]
+    store["Store lesson<br/>save unverified RAG row"] --> deliver
+    deliver["Commit the session<br/>return the lesson<br/>warm up TTS audio in background"]
+```
 
 **Circuit breaker (Resilience4j):** if at least `LLM_BREAKER_FAILURE_RATE`% of the last 20 provider calls fail (errors and timeouts, not validation failures), the breaker opens for `LLM_BREAKER_OPEN_SECONDS` and requests fail fast with `LLM_UNAVAILABLE` instead of piling onto a struggling provider. Redis and RAG cache hits are still served while it is open. Breaker state is exported as a metric (8.4).
 
@@ -232,6 +345,27 @@ Users include minors (under 18), and their questions are stored. The product mus
 - **RAG and quality tables** store problem text and solutions only, never a user ID; obvious emails and phone numbers are redacted before ingestion.
 - **Logs:** no emails, tokens, request bodies or image bytes; user IDs (UUIDs) only; 30-day retention.
 - **Abuse controls:** email verification before lessons; signup throttling (`SIGNUPS_PER_IP_PER_HOUR`) enforced in Redis and nginx.
+
+**Account lifecycle (Mermaid):**
+
+```mermaid
+stateDiagram-v2
+    [*] --> Registered: sign up, terms accepted, age gate
+    Registered --> EmailVerified: clicks verification link
+    EmailVerified --> Active: adult user
+    EmailVerified --> AwaitingGuardian: under 18, guardian email collected
+    AwaitingGuardian --> Active: guardian confirms consent link
+    Active --> DeletionRequested: user requests account deletion
+    DeletionRequested --> Purged: personal data purged within 30 days
+    Purged --> [*]
+
+    note right of Registered
+        Lessons blocked: EMAIL_NOT_VERIFIED
+    end note
+    note right of AwaitingGuardian
+        Lessons blocked: CONSENT_REQUIRED
+    end note
+```
 
 ---
 
@@ -519,7 +653,7 @@ The frontend canvas engine (Konva.js) MUST support these action types:
 POST /api/v1/auth/register
 POST /api/v1/auth/login
 POST /api/v1/auth/refresh
-POST /api/v1/auth/google    (OAuth2)
+POST /api/v1/auth/google    (verifies a Google ID token, issues PrepAI JWTs)
 GET  /api/v1/auth/verify-email?token=...               (public; email verification link)
 POST /api/v1/auth/guardian-consent/confirm?token=...   (public; guardian consent link, see 2.7)
 ```
@@ -768,6 +902,77 @@ CREATE INDEX idx_problem_embeddings_verified ON problem_embeddings(subject) WHER
 CREATE INDEX idx_quality_corrections_subject ON quality_corrections(error_type);
 ```
 
+**Entity relationship diagram (Mermaid, key columns only):**
+
+```mermaid
+erDiagram
+    users ||--o{ lessons : "creates"
+    users ||--o{ usage_log : "consumes sessions"
+    users ||--o{ subscriptions : "subscribes"
+    lessons ||--o{ usage_log : "counted in"
+    lessons ||--o{ quality_corrections : "may be corrected by"
+
+    users {
+        uuid id PK
+        string email UK
+        string plan "FREE, PRO, PRO_PLUS"
+        datetime plan_expires_at
+        boolean email_verified
+        boolean is_minor
+        datetime guardian_consent_at
+        datetime deletion_requested_at
+    }
+    lessons {
+        uuid id PK
+        uuid user_id FK
+        string subject
+        string exam
+        jsonb response_json
+        string source "LLM, RAG_CACHE, REDIS_CACHE"
+        boolean retried
+        string retry_reason
+        int validation_attempts
+        int generation_ms
+        decimal estimated_cost_usd
+        smallint rating
+    }
+    usage_log {
+        uuid id PK
+        uuid user_id FK
+        uuid lesson_id FK
+        date session_date
+        int duration_seconds
+    }
+    subscriptions {
+        uuid id PK
+        uuid user_id FK
+        string plan
+        string razorpay_subscription_id
+        string status
+        datetime current_period_end
+    }
+    quality_corrections {
+        uuid id PK
+        uuid lesson_id FK
+        jsonb original_answer
+        jsonb corrected_answer
+        string error_type
+        string verifier_model
+    }
+    problem_embeddings {
+        uuid id PK
+        string subject
+        text problem_text
+        jsonb solution_json
+        vector embedding "384 dims"
+        string numeric_signature
+        boolean verified
+        int ask_count
+    }
+```
+
+`problem_embeddings` has no foreign keys on purpose: it stores problem text and solutions only, never a user identifier (see 2.7).
+
 ### 5.2 Flyway Migrations
 
 All schema changes go through Flyway. Migration files:
@@ -866,6 +1071,34 @@ Ingestion stores problem text and solution only: no user ID or other identifiers
 3. The Redis exact-match cache still serves identical repeat questions immediately for 7 days. A repeat gets the same answer the student already saw, and corrections evict it.
 4. The `prepai_rag_unverified_backlog` gauge (unverified rows with `ask_count` ≥ 3) is watched. If it stays above one night's batch for a week, raise `QUALITY_BATCH_SIZE`.
 
+**Flow diagram (Mermaid):**
+
+```mermaid
+flowchart LR
+    subgraph lookup["Lookup on each request"]
+        q["Problem text"] --> norm["Normalize text<br/>+ numeric signature"]
+        norm --> emb["Embed locally<br/>384 dims"]
+        emb --> knn["pgvector top 3<br/>same subject, verified = TRUE,<br/>similarity ≥ 0.95"]
+        knn -- "no candidates" --> miss
+        knn --> sig{"Numeric signature<br/>identical?"}
+        sig -- yes --> hit["RAG hit<br/>serve cached solution<br/>zero LLM tokens"]
+        sig -- no --> miss["Miss<br/>counted as rejected_numeric<br/>if it was a near-match"]
+    end
+
+    miss --> gen["Generate through the<br/>2.6 pipeline"]
+    gen --> row["Store row with verified = FALSE<br/>or increment ask_count"]
+
+    subgraph nightly["Nightly verifier (8.1)"]
+        row --> pick["Pick the most-asked<br/>unverified problems"]
+        pick --> grade["Fable 5.1 grades<br/>the solution"]
+        grade -- "correct, quality ≥ 3" --> ver["Set verified = TRUE"]
+        grade -- "incorrect or quality < 3" --> fix["Log the correction, store the corrected<br/>solution as verified, evict Redis key"]
+    end
+
+    ver --> knn
+    fix --> knn
+```
+
 ---
 
 ## 7. Frontend Architecture (Angular)
@@ -958,6 +1191,68 @@ src/
     └── styles.scss
 ```
 
+**Module relationships (Mermaid):**
+
+```mermaid
+flowchart TB
+    api["Backend REST API :8085"]
+
+    subgraph core["core"]
+        authsvc["AuthService, TokenService<br/>AuthGuard, AuthInterceptor"]
+        errint["ErrorInterceptor"]
+        lessonsvc["LessonService"]
+        usersvc["UserService"]
+        subsvc["SubscriptionService"]
+        ttssvc["TTSService"]
+        wssvc["WebSocketService<br/>Phase 2"]
+    end
+
+    subgraph features["features"]
+        landing["landing"]
+        authf["auth: login, register"]
+        dash["dashboard: history, usage"]
+        pricing["pricing"]
+        profile["profile and settings"]
+        subgraph lessonf["lesson"]
+            inp["lesson-input"]
+            player["lesson-player<br/>+ step-controls"]
+            wb["whiteboard"]
+            mastery["mastery-check"]
+        end
+    end
+
+    subgraph wbint["whiteboard internals"]
+        renderer["CanvasRendererService<br/>Konva.js"]
+        anim["AnimationEngineService<br/>timing and easing"]
+        eq["EquationRendererService<br/>KaTeX"]
+    end
+
+    shared["shared: navbar, footer,<br/>loading spinner, pipes"]
+
+    authf --> authsvc
+    dash --> lessonsvc
+    dash --> usersvc
+    pricing --> subsvc
+    profile --> usersvc
+    inp --> lessonsvc
+    player --> lessonsvc
+    player --> ttssvc
+    player --> wb
+    player --> mastery
+    wb --> renderer
+    wb --> eq
+    renderer --> anim
+
+    authsvc --> errint
+    lessonsvc --> errint
+    usersvc --> errint
+    subsvc --> errint
+    ttssvc --> errint
+    errint --> api
+    wssvc -.-> api
+    features -.-> shared
+```
+
 ### 7.2 TTS Integration (VoiceStudio)
 
 The frontend calls the backend TTS proxy, which forwards to the local VoiceStudio server:
@@ -992,6 +1287,40 @@ export class TTSService {
 
 Notes: speed is applied only through `playbackRate` (server audio is always normal speed, see 4.5). The real service must also catch TTS errors and expose an `available` signal so the player can switch to silent mode with captions, and must handle browser autoplay restrictions (first playback starts from a user gesture).
 
+**Playback sequence (Mermaid):**
+
+```mermaid
+sequenceDiagram
+    actor S as Student
+    participant P as Lesson Player
+    participant WB as Whiteboard
+    participant T as TTSService
+    participant API as Backend API
+    participant VS as VoiceStudio
+
+    S->>P: Press Play
+    P->>T: speak step 1 narration
+    T->>API: POST /tts/synthesize
+    API-->>T: audioUrl and durationMs (cached after warm-up)
+    par Narration
+        T->>S: play audio at the chosen speed
+    and Drawing
+        P->>WB: run step 1 canvas actions and equations
+    end
+    P->>T: prefetch step 2 audio
+    T->>API: POST /tts/synthesize
+    API->>VS: synthesize, only if not already cached
+    VS-->>API: audio file
+    alt TTS_UNAVAILABLE or audio error
+        T-->>P: voice unavailable
+        P->>S: silent mode with captions and a Retry voice button
+    end
+    WB-->>P: animation finished
+    T-->>P: narration finished
+    P->>P: wait for both, then start step 2
+    P->>S: after the last step show the summary and mastery check
+```
+
 ---
 
 ## 8. Quality Assurance Agents
@@ -1013,6 +1342,22 @@ A frontier model, Claude Fable 5.1 (`claude-fable-5-1`, `VERIFIER_MODEL`), acts 
    d. Store the corrected solution in problem_embeddings with verified = TRUE and delete the matching Redis `lesson:cache:*` key
 6. If correct and quality ≥ 3: set `verified = TRUE`, `verified_at = now()` on that problem's embedding row (now eligible for RAG hits, see 6.3)
 7. Generate nightly quality report (includes retry rate, validation-failure rate and cache hit rate from 8.4)
+```
+
+**Pipeline diagram (Mermaid):**
+
+```mermaid
+flowchart TD
+    A["1. Pull a batch (default 50):<br/>most-asked unverified first,<br/>then the question bank"] --> B["2. Get the LessonResponse:<br/>stored solution or Sonnet 5.5"]
+    B --> C["3-4. Fable 5.1 grades correctness,<br/>step quality and clarity"]
+    C --> D{"Correct and<br/>quality ≥ 3?"}
+    D -- yes --> E["6. Mark the embedding row verified"]
+    D -- no --> F["5a. Log to quality_corrections"]
+    F --> G["5b. Generate a corrected solution"]
+    G --> H["5c. Update few-shot examples<br/>if a pattern is detected"]
+    H --> I["5d. Store the corrected solution as verified<br/>and evict the Redis cache key"]
+    E --> R["7. Nightly quality report"]
+    I --> R
 ```
 
 **What the "improvement" actually is:**
@@ -1070,7 +1415,7 @@ Manages infrastructure and deployment.
 
 ### 8.4 Observability
 
-**Logging:** JSON structured logs (logstash-logback-encoder). A `traceId` is set in the MDC and returned on every response (`X-Trace-Id`). Logs carry user UUIDs only, never emails, tokens, request bodies or image bytes. LLM calls are logged with provider, model, tokens, latency, cost and outcome, but not prompt content.
+**Logging:** JSON structured logs (Spring Boot built-in structured logging, logstash format). A `traceId` is set in the MDC and returned on every response (`X-Trace-Id`). Logs carry user UUIDs only, never emails, tokens, request bodies or image bytes. LLM calls are logged with provider, model, tokens, latency, cost and outcome, but not prompt content.
 
 **Metrics:** Micrometer, Prometheus format, served at `:9091/actuator/prometheus`. The management port is never exposed through nginx.
 
@@ -1125,7 +1470,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ### 9.1 Pipeline Configuration
 
 - **IDE:** VS Code Remote SSH + Continue IDE on VPS
-- **Primary Models:** DeepSeek + Claude Sonnet (parallel terminals)
+- **Primary Model:** Claude Sonnet 5.5 for every agent (several Claude Code sessions in parallel terminals)
 - **Orchestration:** SEF for scaffolding → AIDLC for features
 - **Repo:** Monorepo — `prepai/` with `backend/` and `frontend/` directories
 - **VPS:** 16GB RAM, 200GB disk, Debian (no Docker)
@@ -1135,14 +1480,15 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 1: Project Scaffolder (SEF Phase)
-**Model:** DeepSeek
+**Model:** Claude Sonnet 5.5
 **Priority:** Run FIRST — all other agents depend on this
 
 **Tasks:**
 1. Initialize monorepo structure with git
-2. Scaffold Spring Boot 3.x project with Java 21 and Gradle, including the `./gradlew` wrapper (backend/)
-   - Dependencies: spring-boot-starter-web, spring-boot-starter-security, spring-boot-starter-data-jpa, spring-boot-starter-data-redis, spring-boot-starter-websocket, spring-ai-anthropic, spring-ai-transformers (local ONNX embeddings), postgresql driver, pgvector-spring, jjwt, lombok, mapstruct, flyway-core, springdoc-openapi, spring-boot-starter-validation, spring-boot-starter-actuator, spring-boot-starter-mail, micrometer-registry-prometheus, resilience4j-spring-boot3, logstash-logback-encoder
-   - `application.yml`: server.port=8085, management.server.port=9091
+2. Scaffold the Spring Boot 4.1.1 project with Java 21 and Gradle, including the `./gradlew` wrapper (backend/). The project is already generated with Spring Initializr (group `com.ascorp`, package `com.ascorp.prepai`, Spring AI BOM 2.0.1) and currently sits at `prepai/`; extend it instead of regenerating, and move it to `backend/` (or update the layout in 9.1) when the monorepo is created
+   - Dependencies (Boot 4 names): spring-boot-starter-webmvc, -websocket, -security, -oauth2-resource-server, -validation, -data-jpa, -data-redis, -flyway (with flyway-database-postgresql), -actuator, -aspectj, -mail; hibernate-vector (pgvector mapping); postgresql driver; spring-ai-starter-model-anthropic and spring-ai-starter-model-transformers (local ONNX embeddings); resilience4j-spring-boot4; micrometer-registry-prometheus; razorpay-java; jsoup; mapstruct, mapstruct-processor and lombok-mapstruct-binding; lombok; devtools (dev only). Tests: the matching `-test` starters plus spring-boot-testcontainers, testcontainers-junit-jupiter and testcontainers-postgresql
+   - Deliberately not included: Spring AI vector stores (the `problem_embeddings` schema is custom), springdoc/Swagger (not required), jjwt (replaced by the OAuth2 resource server), logstash-logback-encoder (Boot has structured logging), and the GraalVM native plugin (we deploy a normal JVM jar)
+   - Configuration files (see 10.4): `application.yaml` (shared), `application-local.yml` (default profile, local development) and `application-prod.yml` (production). Ports in both profiles: app 8085, management 9091, bound to 127.0.0.1
 3. Scaffold Angular 18 project (frontend/)
    - Dependencies: @angular/material, konva, ng2-konva, katex
    - `angular.json`: serve port 4300
@@ -1151,22 +1497,22 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 6. `.env.example` with all required environment variables (including the LLM resilience, image, audio, email, privacy and observability variables in 10.3)
 7. Nginx config template for reverse proxy
 
-**Acceptance:** `./scripts/install.sh` sets up VPS, `./gradlew bootRun` starts backend on :8085, `ng serve --port 4300` starts frontend. `http://localhost:9091/actuator/prometheus` returns metrics.
+**Acceptance:** `./scripts/install.sh` sets up VPS, `./gradlew bootRun` starts the backend on :8085 with the `local` profile (and `SPRING_PROFILES_ACTIVE=prod` starts it with the production profile), `ng serve --port 4300` starts frontend. `http://localhost:9091/actuator/prometheus` returns metrics.
 
 ---
 
 #### AGENT 2: Backend — Auth & User Service
-**Model:** Claude Sonnet
+**Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
 
 **Tasks:**
 1. Implement User entity, repository, DTO (MapStruct mapper)
-2. JWT-based auth (register, login, refresh) with Spring Security
-3. Google OAuth2 integration
+2. JWT-based auth (register, login, refresh) with Spring Security's OAuth2 resource server: Nimbus `JwtEncoder`/`JwtDecoder`, HS256 signing key from `JWT_SECRET`, short-lived access tokens with refresh-token rotation
+3. Google sign-in: the frontend sends the Google ID token to `POST /api/v1/auth/google`; the backend verifies it with a Google `JwtDecoder` (JWKS, issuer and audience checks) and issues PrepAI's own JWTs. No server-side OAuth redirect flow
 4. User profile CRUD
 5. Spring Security config — public endpoints: /auth/**, /api/v1/subscriptions/plans
 6. Rate limiting middleware using Redis (check plan tier → enforce limits)
-7. Usage tracking service — log session duration, enforce daily/monthly caps
+7. Usage tracking service — log session duration, enforce the daily session limit and per-session minute limit of the plan
 8. Request validation with @Valid annotations
 9. Shared error infrastructure (4.7): `ErrorCode` enum, `ApiError` response, `GlobalExceptionHandler` (@ControllerAdvice), custom `AuthenticationEntryPoint` and `AccessDeniedHandler` so 401/403 use the same shape, and a filter that sets `traceId` in the MDC and the `X-Trace-Id` header. Other agents add domain exceptions to this, not their own handlers
 10. Rate limiter with reserve → commit/release semantics: reserve on request start, commit only when a lesson is delivered, release on any system failure. Expose it as a service for Agents 3 and 4. Add burst limiting (`RATE_LIMITED` with `retryAfterSeconds`)
@@ -1179,7 +1525,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 3: Backend — LLM Service Layer
-**Model:** Claude Sonnet
+**Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
 
 **Tasks:**
@@ -1189,10 +1535,10 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 4. Implement `LocalLLMProvider` — calls local Ollama endpoint (for dev)
 5. Generation and retry flow exactly as in 2.6: Sonnet 5.5 → validate → one retry (with validator errors, or after backoff for transient errors) → fail. Maximum 2 LLM calls per request; Resilience4j circuit breaker and timeout from env vars; fail fast with `LLM_UNAVAILABLE` while the breaker is open (cache hits still served)
 6. Prompt template management (system prompt + user prompt, see section 6)
-7. Implement `LessonValidator` with every layer from 2.6 (parse, structure, canvas allow-list and bounds, text safety, LaTeX denylist, HTML stripping), returning machine-readable error lists. Also handle the `OUT_OF_SCOPE` response
+7. Implement `LessonValidator` with every layer from 2.6 (parse, structure, canvas allow-list and bounds, text safety, LaTeX denylist, HTML stripping with jsoup), returning machine-readable error lists. Also handle the `OUT_OF_SCOPE` response
 8. Cost estimation and logging per request (use @Slf4j)
 9. Lesson caching in Redis — hash input text → cache response for 7 days
-10. RAG integration per the hardened flow in 6.3: verified rows only, similarity ≥ 0.95, identical numeric signature, unverified rows stored on a miss, `ask_count` tracking
+10. RAG integration per the hardened flow in 6.3: verified rows only, similarity ≥ 0.95, identical numeric signature, unverified rows stored on a miss, `ask_count` tracking. Map `problem_embeddings` with Hibernate `hibernate-vector` (`@JdbcTypeCode(SqlTypes.VECTOR)`, cosine-distance queries), not Spring AI's VectorStore
 11. Image extraction service (3.1.1): check magic bytes, strip EXIF, call Sonnet 5.5 vision, return `{problemText, confidence, hasDiagram}`; `LOW` confidence raises `IMAGE_UNREADABLE`; never persist the image
 12. Prompt-injection hardening: wrap student text in `<problem>` tags (6.2) and apply system rules 9–10 (6.1)
 13. Metrics and logging per 8.4: lesson counters and latency, tokens, cost, retry reason, validation failures, RAG lookup results and unverified backlog, breaker state. Persist `source`, `retried`, `retry_reason`, `validation_attempts` and `generation_ms` on the lesson row
@@ -1203,14 +1549,14 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 4: Backend — Lesson, Subscription & TTS API
-**Model:** DeepSeek
+**Model:** Claude Sonnet 5.5
 **Depends on:** Agent 2, Agent 3
 
 **Tasks:**
 1. Lesson entity, repository, DTO (MapStruct)
 2. All lesson endpoints (see section 4.2)
 3. Subscription entity, repository
-4. Razorpay integration — create subscription, handle webhook, update user plan
+4. Razorpay integration with the `razorpay-java` SDK — create subscription, handle webhook, update user plan
 5. Plan tier configuration (Free, Pro, Pro+) with feature flags
 6. Lesson history with pagination and filtering
 7. TTS proxy service (4.5): calls VoiceStudio, caches audio by content hash in `AUDIO_DIR`, single-flight de-duplication, always normal speed, text ≤ 1000 chars, returns `TTS_UNAVAILABLE` on failure
@@ -1225,7 +1571,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 5: Frontend — Canvas/Whiteboard Engine (Konva.js + KaTeX)
-**Model:** Claude Sonnet
+**Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
 **This is the CORE differentiator — highest quality bar**
 
@@ -1247,7 +1593,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 6: Frontend — TTS & Voice Sync
-**Model:** DeepSeek
+**Model:** Claude Sonnet 5.5
 **Depends on:** Agent 5
 
 **Tasks:**
@@ -1267,7 +1613,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 7: Frontend — UI/UX
-**Model:** DeepSeek
+**Model:** Claude Sonnet 5.5
 **Depends on:** Agent 5, Agent 6
 
 **Tasks:**
@@ -1291,7 +1637,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 8: Testing & Integration
-**Model:** Claude Sonnet
+**Model:** Claude Sonnet 5.5
 **Depends on:** All agents
 
 **Tasks:**
@@ -1320,7 +1666,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 9: DevOps Agent
-**Model:** DeepSeek
+**Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
 
 **Tasks:**
@@ -1331,7 +1677,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
    - `/api/` → Spring Boot :8085
    - `/ws/` → WebSocket proxy
 4. SSL via Certbot (Let's Encrypt)
-5. systemd service files for Spring Boot, VoiceStudio
+5. systemd service files for Spring Boot, VoiceStudio. The Spring Boot unit runs as a non-root user, sets `SPRING_PROFILES_ACTIVE=prod`, and loads secrets from a root-owned `EnvironmentFile` (mode 600), see 10.4
 6. Log rotation config
 7. Monitoring script — disk, RAM, CPU, service health
 8. Deployment script (`scripts/deploy.sh`) — git pull → build → restart services
@@ -1366,6 +1712,54 @@ VPS (16GB RAM / 200GB Disk / Debian)
 └── Angular (built static, served by nginx)
 ```
 
+**Deployment diagram (Mermaid):**
+
+```mermaid
+flowchart LR
+    user(["Student browser"]) -->|HTTPS| cf["Cloudflare CDN<br/>free tier"]
+    cf --> nginx
+
+    subgraph vps["Debian VPS - 16 GB RAM, 200 GB disk, no Docker"]
+        nginx["Nginx 80/443<br/>SSL via Certbot"]
+        static["Angular static files"]
+        app["Spring Boot app :8085<br/>systemd service"]
+        mgmt["Actuator :9091<br/>not exposed by nginx"]
+        pg[("PostgreSQL 16 + pgvector :5432")]
+        redis[("Redis 7 :6379")]
+        vs["VoiceStudio :5050<br/>systemd service"]
+        audio[["Audio cache directory"]]
+        prom["Prometheus :9095<br/>localhost only"]
+
+        subgraph shared["Already running, shared - not managed by PrepAI"]
+            graf["Grafana :3000<br/>algorithmyc.com/gfn"]
+        end
+
+        subgraph devtools["Dev and test tools"]
+            cs["code-server :8443"]
+            xvfb["Xvfb :99 + Chromium"]
+        end
+    end
+
+    claude["Anthropic API<br/>Claude Sonnet 5.5"]
+    razor["Razorpay"]
+    smtp["SMTP provider"]
+
+    nginx -->|"/"| static
+    nginx -->|"/api/"| app
+    nginx -->|"/ws/"| app
+    nginx -->|"/audio/"| audio
+    app --- mgmt
+    app --> pg
+    app --> redis
+    app --> vs
+    app --> audio
+    app --> claude
+    app --> razor
+    app --> smtp
+    prom -->|"scrapes"| mgmt
+    graf -->|"prepai-prometheus data source"| prom
+```
+
 ### 10.2 Domain & DNS
 - Domain: TBD (e.g., prepai.in or getprepai.com)
 - SSL: Certbot auto-renewal
@@ -1378,14 +1772,20 @@ VPS (16GB RAM / 200GB Disk / Debian)
 DB_URL=jdbc:postgresql://localhost:5432/prepai
 DB_USERNAME=prepai
 DB_PASSWORD=<secure>
+DB_POOL_SIZE=10
 
 # Redis
 REDIS_HOST=localhost
 REDIS_PORT=6379
+REDIS_PASSWORD=<optional>
 
 # JWT
 JWT_SECRET=<secure-256-bit>
-JWT_EXPIRY_HOURS=24
+JWT_EXPIRY_HOURS=1
+JWT_REFRESH_EXPIRY_DAYS=30
+
+# Google sign-in (audience check when verifying the Google ID token)
+GOOGLE_CLIENT_ID=<oauth client id>
 
 # Claude (LLM for lessons and image extraction)
 CLAUDE_API_KEY=<key>
@@ -1394,6 +1794,7 @@ CLAUDE_MODEL=claude-sonnet-5-5
 # Embeddings (local, in-process)
 EMBEDDING_MODEL=all-MiniLM-L6-v2
 EMBEDDING_DIMENSIONS=384
+EMBEDDING_CACHE_DIR=/var/lib/prepai/models
 
 # VoiceStudio
 VOICESTUDIO_API_URL=http://localhost:5050
@@ -1407,6 +1808,9 @@ RAZORPAY_WEBHOOK_SECRET=<secret>
 # App
 APP_BASE_URL=https://prepai.in
 CORS_ALLOWED_ORIGINS=https://prepai.in
+
+# Spring profile (production only; "local" is the default, see 10.4)
+SPRING_PROFILES_ACTIVE=prod
 
 # Server Ports
 SERVER_PORT=8085
@@ -1447,12 +1851,42 @@ GUARDIAN_CONSENT_REQUIRED_UNDER_AGE=18
 SIGNUPS_PER_IP_PER_HOUR=5
 
 # Observability (see 8.4)
+LOG_DIR=/var/log/prepai
 PROMETHEUS_PORT=9095
 GRAFANA_URL=https://algorithmyc.com/gfn/
 GRAFANA_API_TOKEN=<service-account token limited to the PrepAI folder>
 ```
 
 ---
+
+### 10.4 Spring Profiles & Configuration
+
+| File | Purpose |
+|------|---------|
+| `application.yaml` | Shared settings for all profiles: Flyway, JPA (`ddl-auto: validate`), virtual threads, upload limits, Claude model and timeout (with `max-retries: 0`, because retries are handled by the app), the `claude` circuit breaker, and the `prepai.*` settings from 10.3 |
+| `application-local.yml` | Local development. This is the default profile, so `./gradlew bootRun` uses it |
+| `application-prod.yml` | Production. Activated with `SPRING_PROFILES_ACTIVE=prod` in the systemd unit |
+
+| Setting | `local` | `prod` |
+|---------|---------|--------|
+| App port | 8085 | 8085 |
+| Management port | 9091 | 9091 |
+| Bind address | 127.0.0.1 (`SERVER_ADDRESS` overrides) | 127.0.0.1 (nginx is the only public entry point) |
+| Management endpoints | health, info, metrics, prometheus; health details shown | health, prometheus only; health details hidden |
+| Database | `localhost:5432/prepai`, user and password `prepai` by default | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` required, pool size `DB_POOL_SIZE` (10) |
+| Redis | `localhost:6379` | `REDIS_HOST`, `REDIS_PORT`, optional `REDIS_PASSWORD` |
+| Email | `localhost:1025` (a local catch-all mail server such as Mailpit), no auth | `SMTP_*` required, STARTTLS required |
+| Logging | Plain console, `DEBUG` for `com.ascorp.prepai` | JSON (logstash format) to console and `${LOG_DIR}/prepai.log`, `INFO` |
+| Frontend origin and base URL | `http://localhost:4300` | `APP_BASE_URL` and `CORS_ALLOWED_ORIGINS` required |
+| Audio directory | `./data/audio` | `/var/lib/prepai/audio` |
+| Embedding model cache | Spring AI default location | `/var/lib/prepai/models` |
+| Shutdown | default | Graceful, 30 s, so in-flight lessons finish during deploys |
+| Proxy headers | default | `forward-headers-strategy: framework` (trusts nginx and Cloudflare headers) |
+
+Secrets rules:
+- **Production has no defaults for secrets** (`DB_PASSWORD`, `JWT_SECRET`, `CLAUDE_API_KEY`, `SMTP_*`, `RAZORPAY_*`, `GOOGLE_CLIENT_ID`). A missing value stops the app at startup instead of running with a wrong one.
+- Secrets come from a root-owned `EnvironmentFile` (mode 600) read by systemd. They are never committed.
+- The local profile has a throwaway JWT secret and a dummy API key so the app can start. It must never be used for real traffic.
 
 ## 11. Phase 2 Features
 
@@ -1556,8 +1990,42 @@ Day 2+ (AIDLC Phase — parallel):
   Agent 8 (Testing)   ─── Runs last, after all features
 
 Nightly (Ongoing):
-  Self-Evolving Agent ─── Verifies answer quality with Fable/Sonnet
+  Self-Evolving Agent ─── Verifies answer quality with Fable 5.1
   Adversarial Agent   ─── Tries to break things, grows test suite
+```
+
+**Agent dependency diagram (Mermaid):**
+
+```mermaid
+flowchart LR
+    A1["Agent 1<br/>Scaffolder<br/>SEF, day 1"]
+    A2["Agent 2<br/>Auth, user, errors, privacy"]
+    A3["Agent 3<br/>LLM service layer"]
+    A4["Agent 4<br/>Lesson, subscription, TTS API"]
+    A5["Agent 5<br/>Canvas and whiteboard engine"]
+    A6["Agent 6<br/>TTS and voice sync"]
+    A7["Agent 7<br/>UI/UX"]
+    A8["Agent 8<br/>Testing and integration<br/>runs last"]
+    A9["Agent 9<br/>DevOps"]
+
+    A1 --> A2
+    A1 --> A3
+    A1 --> A5
+    A1 --> A9
+    A2 --> A4
+    A3 --> A4
+    A5 --> A6
+    A5 --> A7
+    A6 --> A7
+    A4 --> A8
+    A7 --> A8
+    A9 --> A8
+
+    subgraph nightly["Nightly, ongoing"]
+        N1["Self-evolving verifier<br/>Fable 5.1"]
+        N2["Adversarial tester"]
+    end
+    A8 -.-> nightly
 ```
 
 ---
