@@ -20,11 +20,12 @@ AI whiteboard tutor for Indian students (JEE, NEET, boards). Spring Boot 4.1 / J
 - `./gradlew check` (Checkstyle, ArchUnit, tests, coverage) must be green before a task is done. Never loosen or disable a gate; change the spec first.
 - Run `/simplify` and `/code-review` on your diff before calling a task finished.
 
-## Commands (run in `prepai/`)
-- `./gradlew check`: all quality gates.
-- `./gradlew test --tests '*SomeTest'`: one test class.
-- `./gradlew bootRun`: starts the app with the `local` profile on port 8085 (needs PostgreSQL 17 + pgvector and Redis 8, both installed on this VPS).
-- Use `-q --console=plain`, and `nice -n 15` for Gradle runs: the VPS is shared.
+## Commands (run from the repo root, no `cd` needed)
+- `nice -n 15 ./prepai/gradlew -p prepai -q check`: all quality gates.
+- `nice -n 15 ./prepai/gradlew -p prepai -q test --tests '*SomeTest'`: one test class.
+- `nice -n 15 ./prepai/gradlew -p prepai bootRun`: starts the app with the `local` profile on port 8085 (needs PostgreSQL 17 + pgvector and Redis 8, both installed on this VPS; stop it again when done).
+- The VPS is shared: always `nice` and `-q`; memory limits are in `prepai/gradle.properties`; one Gradle process at a time.
+- Unattended runs (`scripts/autobuild.sh`): nobody answers questions. Follow `BUILD-DECISIONS.md`, log new choices there, put anything only a person can supply under "Needs the user", and never stop to ask.
 
 ## Working rules (keep token use low)
 - Report results in 10 lines or fewer. Do not re-print files or paste long logs.

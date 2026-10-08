@@ -37,7 +37,7 @@ Claude cannot see the plan usage or change its own model; the user does both. Wh
 4. If budget remains at the end, run a Sonnet review (`/code-review`) on the ★ modules only, and fix what it finds.
 
 ## Progress
-★ = Sonnet while budget allows (before the 60% mark), Haiku afterwards.
+★ = Sonnet while budget allows (before the 60% mark), Haiku afterwards. Done column: `[ ]` open, `[x]` done, `[!]` blocked (the driver stops and explains why).
 
 | # | Row | Area | Model | Done |
 |---|-----|------|-------|------|
@@ -50,6 +50,7 @@ Claude cannot see the plan usage or change its own model; the user does both. Wh
 | 7 | generation/validation | `LessonValidator` and the rule classes | Haiku | [ ] |
 | 8 | generation/llm | Claude provider, prompts, retry and repair, circuit breaker, metrics | ★ Sonnet | [ ] |
 | 9 | generation/embedding + rag + cache | local embeddings, verified-only lookup, numeric signature, Redis cache | ★ Sonnet | [ ] |
+| 9b | generation/quality | nightly verifier and corrections job (calls Fable 5.1 in production only), `verified` promotion | Haiku | [ ] |
 | 10 | generation/imageextract | image sanitising and extraction | Haiku | [ ] |
 | 11 | Agent 5 | whiteboard engine (Konva, KaTeX, animation) | ★ Sonnet | [ ] |
 | 12 | Agent 9 | DevOps: Prometheus, Grafana sync, nginx, systemd, deploy script | Haiku | [ ] |
@@ -63,6 +64,22 @@ Claude cannot see the plan usage or change its own model; the user does both. Wh
 | 20 | Review | Sonnet `/code-review` of the ★ modules, then fixes | Sonnet, if budget remains | [ ] |
 
 Flyway migrations belong to the row that owns the table (spec 5.2).
+
+## Unattended mode (no one answers questions)
+`scripts/autobuild.sh` runs the whole table without anyone present: one fresh, small Claude session per row, each on the model the table names, until every row is `[x]`, a row is blocked, the budget is used, or a stop is requested.
+
+```
+BUDGET_USD=40 scripts/autobuild.sh              run it (set the total budget)
+DRY_RUN=1 BUDGET_USD=40 scripts/autobuild.sh    show what would run, call nothing
+touch .autobuild/STOP                           stop cleanly after the current row
+```
+
+- **The 60% rule is automatic.** The driver adds up the cost Claude reports for each session. Once the total reaches 60% of `BUDGET_USD` it runs every remaining row on Haiku. The figure is a list-price estimate, so treat the budget as a stand-in for your plan's usage limit.
+- **Hard caps.** `ROW_BUDGET_USD` (default 4) limits one session, `BUDGET_USD` limits the whole run, `ROW_TIMEOUT` (default 90m) limits time, and only one run can be active at a time.
+- **Failures.** A row that does not reach its checkpoint is tried once more (on Sonnet when budget allows). If it fails again, the row is marked `[!]` and the run stops with the reason in `.autobuild/STOPPED`.
+- **No questions.** Sessions follow `BUILD-DECISIONS.md`, log new choices there, and list anything only a person can supply under "Needs the user" instead of stopping.
+- **Guardrails.** Sessions run with `scripts/autobuild-settings.json` and `--permission-mode dontAsk`: anything not allowed is refused, not asked. They can read and write only inside this repository; `sudo`, `git push`, `rm -r`, `curl`, `systemctl`, anything under `/etc`, `/opt`, `/root` and `/var`, `.git`, `creds.md` and `.env` files, and the driver itself are blocked.
+- **Between rows** the working tree must be clean (everything committed) or the driver stops.
 
 ## Resume prompt for a fresh session
 Paste this, nothing more:
