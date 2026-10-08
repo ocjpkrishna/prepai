@@ -1,0 +1,140 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+		"-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+		"https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+	PrepAI code quality gate (spec section 9.1.2). Runs with ./gradlew check.
+	The limits exist to keep code short, flat and readable top to bottom.
+	Change a limit only by updating the spec first.
+-->
+<module name="Checker">
+	<property name="severity" value="error"/>
+	<property name="charset" value="UTF-8"/>
+	<property name="tabWidth" value="4"/>
+
+	<module name="SuppressionFilter">
+		<property name="file" value="${config_loc}/suppressions.xml"/>
+	</module>
+
+	<module name="NewlineAtEndOfFile"/>
+	<module name="FileLength">
+		<property name="max" value="300"/>
+	</module>
+	<module name="LineLength">
+		<property name="max" value="120"/>
+		<property name="ignorePattern" value="^(package|import) .*|https?://"/>
+	</module>
+
+	<module name="RegexpSingleline">
+		<property name="format" value="System\.(out|err)\.print"/>
+		<property name="message" value="Use SLF4J logging instead of System.out / System.err"/>
+	</module>
+
+	<module name="TreeWalker">
+		<!-- Methods that read like a short story: small, flat and simple -->
+		<module name="MethodLength">
+			<property name="max" value="20"/>
+			<property name="countEmpty" value="false"/>
+		</module>
+		<module name="ParameterNumber">
+			<property name="max" value="4"/>
+			<property name="ignoreOverriddenMethods" value="true"/>
+			<property name="tokens" value="METHOD_DEF"/>
+		</module>
+		<module name="ParameterNumber">
+			<property name="id" value="ConstructorParameterNumber"/>
+			<property name="max" value="7"/>
+			<property name="tokens" value="CTOR_DEF"/>
+		</module>
+		<module name="CyclomaticComplexity">
+			<property name="max" value="8"/>
+		</module>
+		<module name="NPathComplexity">
+			<property name="max" value="100"/>
+		</module>
+		<module name="JavaNCSS">
+			<property name="methodMaximum" value="15"/>
+			<property name="classMaximum" value="150"/>
+			<property name="fileMaximum" value="200"/>
+		</module>
+		<module name="NestedIfDepth">
+			<property name="max" value="1"/>
+		</module>
+		<module name="NestedForDepth">
+			<property name="max" value="1"/>
+		</module>
+		<module name="NestedTryDepth">
+			<property name="max" value="1"/>
+		</module>
+		<module name="ReturnCount">
+			<property name="max" value="3"/>
+			<property name="maxForVoid" value="2"/>
+		</module>
+		<module name="BooleanExpressionComplexity">
+			<property name="max" value="3"/>
+		</module>
+		<module name="ClassFanOutComplexity">
+			<property name="max" value="15"/>
+		</module>
+		<module name="ClassDataAbstractionCoupling">
+			<property name="max" value="7"/>
+		</module>
+		<module name="AnonInnerLength">
+			<property name="max" value="15"/>
+		</module>
+		<module name="LambdaBodyLength">
+			<property name="max" value="8"/>
+		</module>
+
+		<!-- No leftovers, no hidden failures -->
+		<module name="TodoComment">
+			<property name="format" value="(TODO|FIXME|XXX|HACK)"/>
+		</module>
+		<module name="IllegalCatch"/>
+		<module name="IllegalThrows"/>
+		<module name="EmptyCatchBlock"/>
+		<module name="EmptyBlock"/>
+		<module name="EmptyStatement"/>
+		<module name="MagicNumber">
+			<property name="ignoreNumbers" value="-1, 0, 1, 2"/>
+			<property name="ignoreAnnotation" value="true"/>
+			<property name="ignoreFieldDeclaration" value="true"/>
+			<property name="ignoreHashCodeMethod" value="true"/>
+		</module>
+
+		<!-- Imports -->
+		<module name="AvoidStarImport"/>
+		<module name="UnusedImports"/>
+		<module name="RedundantImport"/>
+		<module name="IllegalImport"/>
+
+		<!-- Hygiene -->
+		<module name="NeedBraces"/>
+		<module name="OneStatementPerLine"/>
+		<module name="MultipleVariableDeclarations"/>
+		<module name="InnerAssignment"/>
+		<module name="AvoidNestedBlocks"/>
+		<module name="MissingSwitchDefault"/>
+		<module name="SimplifyBooleanExpression"/>
+		<module name="SimplifyBooleanReturn"/>
+		<module name="StringLiteralEquality"/>
+		<module name="EqualsHashCode"/>
+		<module name="FinalClass"/>
+		<module name="ModifierOrder"/>
+		<module name="RedundantModifier"/>
+		<module name="UpperEll"/>
+		<module name="ArrayTypeStyle"/>
+
+		<!-- Naming -->
+		<module name="PackageName">
+			<property name="format" value="^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$"/>
+		</module>
+		<module name="TypeName"/>
+		<module name="MethodName"/>
+		<module name="MemberName"/>
+		<module name="ParameterName"/>
+		<module name="LocalVariableName"/>
+		<module name="ConstantName"/>
+	</module>
+</module>

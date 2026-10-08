@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+		"-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+		"https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+<suppressions>
+	<!-- Tests may use literal values and wider fixtures; they still follow every other rule -->
+	<suppress checks="MagicNumber|ClassFanOutComplexity|ClassDataAbstractionCoupling|JavaNCSS|FileLength"
+			files="[\\/]src[\\/]test[\\/]"/>
+</suppressions>
