@@ -83,6 +83,15 @@ touch .autobuild/STOP               stop cleanly after the current step
 - **Between rows** the working tree must be clean (everything committed) or the driver stops.
 - **Shared allowance.** Your own use of Claude draws from the same plan windows. Weekly usage was already 80% on 2026-10-08, with the weekly reset at 2026-10-12 05:00 UTC.
 
+## Cloud mode (uses the included cloud credit)
+The plan includes $100 of cloud-session credit, valid until 2026-11-05 13:29 IST. It applies automatically to cloud sessions only (not to local sessions or `scripts/autobuild.sh`); afterwards the plan's usage applies, and there is no purchased credit to overspend.
+
+- **Launch one row:** `claude --cloud "<prompt>" --model <haiku|sonnet>`, with the prompt from `scripts/cloud-prompt.sh <row id>`. Use the row's tier from the table.
+- **One pull request per row.** The session works on branch `row-<id>`. The maintainer reviews, runs the `db` tests on the VPS, merges, and ticks the row here.
+- **Order.** Rows 1 and 2 first, alone. Then these can run in parallel: 3, 7, 11, 12, 16. After that: 4 and 5 (need 3), 8, 9, 9b and 10 (need 7 or `common`), then 6, 13, 14, 15, 17, 18, 19.
+- **Spend the credit on the ★ rows first** (3, 5, 8, 9, 11, 13, 15, 17), then the rest, then the deep review of row 20 with `/code-review ultra`, which also draws on the cloud credit.
+- **Watch the balance** on the usage page. Stop launching new sessions when under $10 is left.
+
 ## Resume prompt for a fresh session
 Paste this, nothing more:
 

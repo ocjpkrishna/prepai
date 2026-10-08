@@ -38,4 +38,11 @@ AI whiteboard tutor for Indian students (JEE, NEET, boards). Spring Boot 4.1 / J
 - PostgreSQL 17 and Redis 8 belong to PrepAI. MongoDB, QuestDB, Grafana and the trading services belong to other projects: read-only at most, never modify, restart or write to them (see also the user-level rules).
 - Never use `sudo` without asking. Check a port with `lsof` before binding it. PrepAI uses 8085 (app), 9091 (management), 9095 (Prometheus).
 - Never write credentials into files, specs or commits. Secrets come from the environment only.
-- Commit after each finished feature or bug fix, one logical change per commit, with a message like `feat(<module>): ...` or `fix(<module>): ...` (the user approved this on 2026-10-08). A bug gets a failing test first, then the fix. Never push, and never rewrite earlier commits, without asking.
+- Commit after each finished feature or bug fix, one logical change per commit, with a message like `feat(<module>): ...` or `fix(<module>): ...` (the user approved this on 2026-10-08). A bug gets a failing test first, then the fix. Never push to `main` and never rewrite earlier commits without asking (a cloud session pushes only its own `row-<id>` branch).
+
+## Cloud sessions (Claude Code on the web)
+A cloud session works on a GitHub clone and has none of this VPS's services (no PostgreSQL, Redis or Docker).
+- Check with `./prepai/gradlew -p prepai -q check -PskipDbTests` (leaves out tests tagged `db`; those run on the VPS later). Tag every test that needs PostgreSQL or Redis with `@Tag("db")`.
+- Work on a branch named `row-<id>` (for example `row-3`), never on `main`. When the row's checkpoint is green, push the branch and open a pull request. Put the handoff line in the PR description.
+- Do not edit `BUILD-RUNBOOK.md` (parallel sessions would conflict); the maintainer ticks the row when merging.
+- One row per session; do not touch other rows. Everything in `BUILD-DECISIONS.md` still applies.

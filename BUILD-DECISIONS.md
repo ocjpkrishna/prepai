@@ -13,8 +13,9 @@ Unattended sessions cannot ask questions, so every choice that would normally be
 8. **Gradle.** Run `nice -n 15 ./prepai/gradlew -p prepai -q <tasks>` from the repo root (memory limits are in `prepai/gradle.properties`). One Gradle process at a time.
 9. **No long-running processes.** Do not leave a server, a Gradle daemon or a browser running after a step. Ports 8085, 9091 and 9095 stay free except during a short test.
 10. **Spec edits.** The spec is read-only during the build except for the version line, the changelog and corrections found while building; log each correction below.
-11. **Commits.** One per finished feature or bug fix, `git add` with explicit paths (never `git add -A`), messages `feat(<module>): ...`, `fix(<module>): ...`, `test(...)`, `docs(...)`, `chore(...)`. Never push.
+11. **Commits.** One per finished feature or bug fix, `git add` with explicit paths (never `git add -A`), messages `feat(<module>): ...`, `fix(<module>): ...`, `test(...)`, `docs(...)`, `chore(...)`. Never push to `main` (local unattended runs never push at all; cloud sessions push only their own `row-<id>` branch).
 12. **Shared VPS.** No `sudo`, no access to MongoDB, QuestDB, Grafana or the trading services, nothing outside the repo directory. `creds.md` in the repo root is off limits and is git-ignored.
+13. **Cloud sessions.** The repository lives at `github.com/ocjpkrishna/prepai` (private), and part of the build runs in cloud sessions on the included credit. Cloud sandboxes have no PostgreSQL, Redis or Docker, so any test that needs one is tagged `@Tag("db")` and skipped with `-PskipDbTests`; those tests run on the VPS (database `prepai_test`) before a row is accepted. Cloud sessions work on a `row-<id>` branch and open a pull request, never touch `BUILD-RUNBOOK.md`, and never push to `main`.
 
 ## Decisions made during the build
 (One line each: date, row, decision, reason.)

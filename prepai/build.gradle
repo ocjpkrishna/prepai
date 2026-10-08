@@ -96,7 +96,12 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	// Cloud sandboxes have no PostgreSQL or Redis: -PskipDbTests leaves out tests tagged "db".
+	useJUnitPlatform {
+		if (project.hasProperty('skipDbTests')) {
+			excludeTags 'db'
+		}
+	}
 	finalizedBy 'jacocoTestReport'
 }
 
