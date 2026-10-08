@@ -1,7 +1,7 @@
 # PrepAI — Product Specification Document
 ## AI Whiteboard Tutor for Indian Students
 
-**Version:** 2.7
+**Version:** 2.9
 **Date:** October 8, 2026
 **Author:** Krishna (Ascorp Softwares)
 **Status:** Ready for AIDLC + SEF Pipeline
@@ -15,6 +15,8 @@
 - v2.5 — Claude Sonnet 5.5 on every agent card (DeepSeek removed). Spring profiles: `application.yaml` (shared), `application-local.yml` (default) and `application-prod.yml`, with ports, binds and secrets defined in the new section 10.4.
 - v2.6 — PostgreSQL 17.11 + pgvector 0.8.0 and Redis 8.0.2 installed on the VPS; spec versions updated from PostgreSQL 16 and Redis 7 to match the Debian 13 packages.
 - v2.7 — Code structure rules (9.1.1): one `agentN` package per agent, feature sub-packages with controller/service/repository/model layers, shared models in `model/common`, and an `agent.md` per agent. Added `refresh_tokens` and `verification_tokens` tables (missing for Agent 2), and moved lesson orchestration (reserve/commit/release) to Agent 4.
+- v2.8 — Code quality standards (9.1.2): story-style code, hard limits, SOLID and Spring patterns, testability rules and a definition of done. Enforced in the build by Checkstyle, an ArchUnit architecture test, JaCoCo coverage and `lombok.config`.
+- v2.9 — Code is organised by business module (`account`, `quota`, `generation`, `lesson`, `billing`, `speech`, `common`) instead of per-agent packages; agent assignment is recorded in one table. Each module has a `MODULE.md` and `prepai/ARCHITECTURE.md` indexes them. The "Day 1 / Day 2" plan is replaced by a dependency-ordered build.
 
 ---
 
@@ -213,7 +215,7 @@ flowchart TB
 
 | Library | Purpose |
 |---------|---------|
-| Lombok | Boilerplate reduction (@Data, @Builder, @Slf4j) |
+| Lombok | Boilerplate reduction (`@RequiredArgsConstructor`, `@Getter`, `@Builder`, `@Slf4j`); `@Data` is rejected by `lombok.config` |
 | SLF4J + Logback | Structured logging |
 | MapStruct + lombok-mapstruct-binding | DTO ↔ Entity mapping (zero reflection, compile-time); the binding makes it work with Lombok |
 | Flyway | Database migration versioning |
@@ -1018,7 +1020,7 @@ erDiagram
 
 ### 5.2 Flyway Migrations
 
-All schema changes go through Flyway. Each agent creates only the migrations it owns: V1, V3, V7, V8 belong to Agent 2; V2 and V4 to Agent 4; V5 and V6 to Agent 3. The `vector` extension in V5 must already exist (created by a superuser, see 2.5), because the application role cannot create it. Migration files:
+All schema changes go through Flyway. Each agent creates only the migrations it owns: V1, V7 and V8 (`account`) and V3 (`quota`) belong to Agent 2; V2 (`lesson`) and V4 (`billing`) to Agent 4; V5 and V6 (`generation`) to Agent 3. The `vector` extension in V5 must already exist (created by a superuser, see 2.5), because the application role cannot create it. Migration files:
 ```
 src/main/resources/db/migration/
 ├── V1__create_users_table.sql
@@ -1522,17 +1524,27 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 
 ### 9.1.1 Code Structure & Conventions (mandatory for every agent)
 
-The goal is that anyone can open the project and see which agent wrote what, and what each piece does, without reading the code.
+The codebase is organised by **what the code does** (business capability), never by who built it. Agents are a build-time assignment and will change; modules are what the product is made of. Anyone, human or agent, should be able to open the project and see where a capability lives and what it does without reading the code.
 
-**Rule 1 - one folder per agent.** All backend code of an agent lives under `prepai/src/main/java/com/ascorp/prepai/agentN/` and nowhere else. The only classes outside the agent folders are `PrepaiApplication` and the shared models in `com.ascorp.prepai.model.common` (Rule 5).
+**Rule 1 - one module per business capability.** All backend code lives under `prepai/src/main/java/com/ascorp/prepai/<module>/`. The only class outside a module is `PrepaiApplication`.
 
-**Rule 2 - one sub-package per feature.** Inside `agentN/`, each feature gets a lowercase package named after what it does (Java package names are lowercase). Example for Agent 2: `auth`, `user`, `errors`, `privacy`, `ratelimit`, `usage`.
+| Module | What it is for | Feature packages inside | Built by |
+|--------|----------------|-------------------------|----------|
+| `account` | Who the student is: sign-up, login, tokens, profile, consent, deletion | `auth`, `user`, `privacy` | Agent 2 |
+| `quota` | What the student may do today: plan limits and session counting | `ratelimit`, `usage` | Agent 2 |
+| `generation` | Turns a problem into a validated lesson (LLM, validation, caches, image reading) | `llm`, `validation`, `rag`, `embedding`, `cache`, `imageextract` | Agent 3 |
+| `lesson` | The lesson lifecycle API: generate, history, feedback, mastery check | `lesson` | Agent 4 |
+| `billing` | Paid plans through Razorpay | `subscription` | Agent 4 |
+| `speech` | Narration audio | `tts` | Agent 4 |
+| `common` | Shared foundation every module may use | `errors` (Agent 2), `config` (Agent 1), `model` (shared enums and the lesson contract) | shared |
+
+**Rule 2 - one sub-package per feature.** Inside a module, each feature gets a lowercase package named after what it does (Java package names are lowercase).
 
 **Rule 3 - layers inside a feature.** Create only the layers a feature actually needs. No empty packages.
 
 ```
-agent2/
-├── agent.md                      <- what this agent does and its context (Rule 8)
+account/
+├── MODULE.md                     <- what this module does and its context (Rule 8)
 └── auth/                         <- one feature
     ├── controller/               REST controllers, the UI-facing layer
     ├── service/                  business logic
@@ -1549,12 +1561,12 @@ agent2/
 | Layer | Does | Must not |
 |-------|------|----------|
 | `controller` | HTTP only: routes, `@Valid`, status codes, calls one service, returns DTOs | Contain business logic, call a repository, return an entity |
-| `service` | Business rules, transactions, calls repositories, other features' services, and external clients | Know about HTTP (`HttpServletRequest`, `ResponseEntity`) |
+| `service` | Business rules, transactions, calls repositories, other modules' services, and external clients | Know about HTTP (`HttpServletRequest`, `ResponseEntity`) |
 | `repository` | Talks to PostgreSQL (Spring Data) or Redis, nothing else | Contain business rules |
 
 ```mermaid
 flowchart LR
-    subgraph feature["One feature, for example agent2/auth"]
+    subgraph feature["One feature, for example account/auth"]
         direction LR
         c["controller<br/>REST, UI facing"] --> s["service<br/>business logic"] --> r["repository<br/>database or Redis access"]
         c -.-> dto["model/dto"]
@@ -1566,71 +1578,167 @@ flowchart LR
     r --> db[("PostgreSQL / Redis")]
 ```
 
-Features with no REST endpoint have no `controller` package, and features with no storage have no `repository` package. For example, Agent 3 has no controllers (Agent 4 exposes the endpoints), and `agent2/errors` has neither a controller nor a repository.
+Features with no REST endpoint have no `controller` package, and features with no storage have no `repository` package. For example, `generation` has no controllers (`lesson` exposes the endpoints), and `common/errors` has neither a controller nor a repository.
 
 **Rule 5 - models.**
 - Every feature owns its models in its own `model/entity` and `model/dto`.
-- A class that more than one feature needs moves into `com.ascorp.prepai.model.common`, organised by domain (`enums`, `lesson`, and so on). Typical contents: the `Plan`, `Subject`, `Exam` and `Difficulty` enums and the `LessonRequest` / `LessonResponse` contract with its nested classes (3.1, 3.2).
-- A JPA entity belongs to exactly one feature and is never shared. Other features refer to it by id (`UUID userId`, not a `User` object) or get a DTO from the owner's service.
+- A class that more than one module needs moves into `com.ascorp.prepai.common.model`, organised by domain (`enums`, `lesson`). Typical contents: the `Plan`, `Subject`, `Exam` and `Difficulty` enums and the `LessonRequest` / `LessonResponse` contract with its nested classes (3.1, 3.2).
+- A JPA entity belongs to exactly one feature and is never shared. Other modules refer to it by id (`UUID userId`, not a `User` object) or get a DTO from the owner's service.
 
-**Rule 6 - cross-agent calls.** An agent may call another agent's public **service** classes and use `model/common`. It must never use another agent's repository or entity. Agent 2's `errors` package is the shared error foundation, so every agent may use it.
+**Rule 6 - cross-module calls.** A module may call another module's public **service** classes and use `common`. It must never use another module's repository or entity. `common` depends on no business module, and there are no cycles between modules.
 
 ```mermaid
 flowchart TB
-    common["model/common<br/>enums, lesson contract"]
-    errs["agent2/errors<br/>ApiException, ErrorCode"]
-    a2["agent2<br/>auth, user, privacy, ratelimit, usage"]
-    a3["agent3<br/>llm, validation, rag, embedding, cache, imageextract"]
-    a4["agent4<br/>lesson, subscription, tts"]
-    a8["agent8<br/>cross-cutting tests"]
-    a4 -->|"LessonGenerationService"| a3
-    a4 -->|"RateLimiterService, UsageService, AccountGateService"| a2
-    a2 --> errs
-    a3 --> errs
-    a4 --> errs
-    a2 --> common
-    a3 --> common
-    a4 --> common
-    a8 -.->|"tests all"| a4
+    subgraph business["Business modules"]
+        lesson --> generation
+        lesson --> quota
+        lesson --> account
+        lesson --> speech
+        quota --> account
+        billing --> account
+    end
+    business -->|"all may use"| common["common<br/>errors, config, shared models"]
 ```
 
 **Rule 7 - naming and tests.**
 - Class names: `XxxController`, `XxxService`, `XxxRepository`, `XxxMapper`; DTOs end in `Request`, `Response` or `Dto`; entities are singular nouns (`User`, `Lesson`).
-- Tests mirror the production path: `src/test/java/com/ascorp/prepai/agentN/<feature>/<layer>/XxxTest.java`. Cross-cutting tests (integration, adversarial, performance) live in `agent8/` of the test tree.
+- Tests mirror the production path: `src/test/java/com/ascorp/prepai/<module>/<feature>/<layer>/XxxTest.java`. Cross-cutting tests live in `src/test/java/com/ascorp/prepai/` under `architecture`, `integration`, `adversarial`, `performance` and `support`.
 
-**Rule 8 - every agent has an `agent.md`** at the root of its folder (`.../agentN/agent.md`). It is the first thing the agent reads and the first thing a human opens. It must contain:
-1. Purpose, and the context the agent works in (what the rest of the system expects from it).
-2. The package map: every feature package and what lives in it, with one line per main class.
-3. The public surface other agents may call (endpoints and service classes).
-4. Data owned (tables, Redis keys) and configuration used (properties, environment variables).
-5. Rules specific to this agent, with links to the spec sections.
-6. Definition of done (the acceptance criteria of the task card).
-7. A status checklist of its tasks.
+**Rule 8 - every module explains itself in a `MODULE.md`** at the root of its folder, and `prepai/ARCHITECTURE.md` is the one-page index of all modules. `MODULE.md` is the first thing an agent reads before touching a module and the first thing a human opens. It must stay short (one screen) and contain:
+1. Purpose, "Built by: Agent N", the spec sections, and the context the module works in.
+2. The package map: every feature package and one line per main class.
+3. What other modules may call (the public surface) and which modules it uses.
+4. Data owned (tables, Redis keys) and configuration used.
+5. Rules and gotchas specific to the module.
+6. A status checklist while the module is being built. When the module is finished, the checklist is removed and "Rules and gotchas" keeps growing.
 
-The agent updates `agent.md` as part of its work: tick the checklist, and keep the package map true to the code.
+It links to spec sections instead of copying them. A test (`ModuleDocumentationTest`) fails the build if a module folder has no `MODULE.md`. Updating the file is part of the definition of done (9.1.2).
 
-**Where each agent's code and `agent.md` live:**
+**Build assignment: which agent builds what**
 
-| Agent | Code location | `agent.md` |
-|-------|---------------|------------|
-| 1 Scaffolder | `.../com/ascorp/prepai/agent1/` (shared configuration beans); repo-level files: `scripts/`, `.github/workflows/`, `.env.example`, nginx template, Angular scaffold | `.../agent1/agent.md` |
-| 2 Auth, user, errors, privacy | `.../com/ascorp/prepai/agent2/` | `.../agent2/agent.md` |
-| 3 LLM service layer | `.../com/ascorp/prepai/agent3/` | `.../agent3/agent.md` |
-| 4 Lesson, subscription, TTS API | `.../com/ascorp/prepai/agent4/` | `.../agent4/agent.md` |
-| 5 Whiteboard engine | `frontend/src/app/features/lesson/whiteboard/` (plus `core/models/canvas-action.model.ts`) | `frontend/src/app/features/lesson/whiteboard/agent.md` |
-| 6 TTS and voice sync | `frontend/src/app/features/lesson/lesson-player/` (plus `core/services/tts.service.ts`) | `frontend/src/app/features/lesson/lesson-player/agent.md` |
-| 7 UI/UX | `frontend/src/app/features/` (landing, auth, dashboard, lesson-input, mastery-check, pricing, profile) and `shared/` | `frontend/src/app/features/agent.md` |
-| 8 Testing | `src/test/java/com/ascorp/prepai/agent8/` and `frontend/e2e/`; each agent's own unit tests mirror its package | `src/test/java/com/ascorp/prepai/agent8/agent.md` |
-| 9 DevOps | `scripts/`, `nginx/`, `ops/` | `ops/agent.md` |
+| Agent | Builds | Where its documentation lives |
+|-------|--------|-------------------------------|
+| 1 Scaffolder | `common/config`, the build and quality gates, repo layout (`scripts/`, `.github/workflows/`, `.env.example`, `nginx/`, Angular scaffold) | `ARCHITECTURE.md`, `common/MODULE.md` |
+| 2 Auth, quota, errors | `account`, `quota`, `common/errors` | `MODULE.md` in each |
+| 3 LLM service layer | `generation`, and the lesson contract in `common/model/lesson` | `generation/MODULE.md` |
+| 4 Lesson, billing, speech | `lesson`, `billing`, `speech` | `MODULE.md` in each |
+| 5 Whiteboard engine | `frontend/src/app/features/lesson/whiteboard/` (plus `core/models/canvas-action.model.ts`) | `MODULE.md` in that folder |
+| 6 TTS and voice sync | `frontend/src/app/features/lesson/lesson-player/` (plus `core/services/tts.service.ts`) | `MODULE.md` in that folder |
+| 7 UI/UX | `frontend/src/app/features/` folders landing, auth, dashboard, lesson-input, mastery-check, pricing, profile, and `shared/` | `MODULE.md` in each feature folder |
+| 8 Testing | the cross-cutting test packages above and `frontend/e2e/` | `src/test/java/com/ascorp/prepai/TESTING.md` |
+| 9 DevOps | `scripts/`, `nginx/`, `ops/` | `ops/MODULE.md` |
 
-`.../` above means `prepai/src/main/java`. The Angular app keeps the feature-based layout of 7.1 (it already separates code by feature), so for Agents 5 to 7 the `agent.md` sits in each agent's main folder instead of an `agentN` package. Agent 1 creates the `agent.md` files for Agents 5 to 7 and 9 when it scaffolds the frontend and ops folders, using the template in Rule 8.
+The Angular app keeps the feature-based layout of 7.1 (it already separates code by feature); each feature folder is a module and gets a `MODULE.md`. Agent 1 creates the `MODULE.md` files for Agents 5 to 7 and 9 when it scaffolds the frontend and ops folders, using the template in Rule 8. The agent assignment lives only in this table and in each module's "Built by" line, never in package or folder names.
+
+### 9.1.2 Code Quality Standards (mandatory for every agent)
+
+Code is read far more often than it is written. Every class must read like a short, clear story: the public method tells what happens, in order, each step has a name that says what it does, and the details sit one level below. If a reader has to scroll, decode or guess, the code is not done. Quality is the primary goal of this project, ahead of speed of delivery.
+
+#### The story rule: how code must read
+1. **Top-down.** A public method reads like a table of contents: a short list of well-named steps. The private methods that implement those steps sit right below it, in the same order (the step-down rule).
+2. **One level of abstraction per method.** A method either coordinates steps or does one detailed thing, never both.
+3. **Names carry the meaning.** Methods are verbs that state intent (`reserveSession`, `rejectOutOfScopeProblem`), classes are nouns that state a role (`LessonValidator`, `RateLimiterService`). No `process`, `handle`, `doIt`, `Helper`, `Manager`, `Util`, `Data` or `Info`. No abbreviations except domain terms (RAG, LLM, TTS, JWT).
+4. **Guard clauses first, happy path flat.** Reject bad input at the top and return or throw early, so the main path is not buried in nesting.
+5. **Comments say why, never what.** The code says what. Public service methods get a one-line Javadoc stating the contract and the errors they raise. Everything else needs no comment if it is named well.
+
+Illustrative example of the intended style (the real class is built by Agent 4):
+
+```java
+public LessonResponse generateLesson(UUID userId, LessonRequest request) {
+	accountGate.assertMayGenerate(userId);
+	try (SessionReservation session = rateLimiter.reserveSession(userId)) {
+		LessonResponse lesson = generateAndStore(userId, request);
+		session.commit();
+		ttsWarmup.warmUpInBackground(lesson);
+		return lesson;
+	}
+}
+```
+
+The reservation is `AutoCloseable`: leaving the block without `commit()` releases the session, so a failure can never leak a student's quota, and the method needs no error-handling noise.
+
+#### Hard limits (enforced by Checkstyle in the build)
+| Limit | Value |
+|-------|-------|
+| Method length | 20 lines, and 15 statements |
+| Method parameters | 4 (constructors: 7; more means the class does too much, split it) |
+| Cyclomatic complexity per method | 8 |
+| Nesting | one level of `if`, `for` or `try` inside another |
+| Conditions in one boolean expression | 3 |
+| `return` statements per method | 3 |
+| Lambda body | 8 lines (longer: extract a named method) |
+| Class size | 150 statements; file 300 lines; line 120 characters |
+| Dependencies of one class | 15 other classes |
+| Magic numbers | none; use a named constant or a configuration property (0, 1, 2 and -1 are allowed) |
+| Leftovers | no `TODO`, `FIXME`, `HACK` comments (use the module's `MODULE.md` status checklist or spec section 15), no commented-out code, no `System.out` |
+| Error handling | never catch `Exception`, `RuntimeException` or `Throwable`; never throw a bare `RuntimeException`; no empty catch blocks |
+
+When a limit is hit, split the code. Never raise a limit or suppress a rule without updating this section first. Formatting: tabs for Java, as in `.editorconfig`.
+
+#### SOLID in this codebase
+| Principle | What it means here | Example |
+|-----------|--------------------|---------|
+| **S** Single responsibility | A class has one reason to change. Controllers do HTTP only, a service covers one family of use cases, a validation rule checks one thing | `LessonValidator` only runs rules; each rule is its own class |
+| **O** Open/closed | Add behaviour by adding a class, not by editing an `if`/`switch` chain. Spring injects every implementation of an interface as a `List` | New validation layer = new `ValidationRule` bean; new LLM provider = new `LLMProvider` bean |
+| **L** Liskov substitution | Any implementation works wherever its interface is used, with the same contract and the same exceptions | `LocalLLMProvider` and `ClaudeProvider` are interchangeable to `LessonGenerationService` |
+| **I** Interface segregation | Small interfaces shaped by the caller, never a catch-all | Agent 4 depends on `LessonGenerationService` only, not on Agent 3's internals |
+| **D** Dependency inversion | Depend on abstractions at boundaries: Claude, VoiceStudio, Razorpay, SMTP and Redis each sit behind a small class or interface that tests can replace. Dependencies arrive through the constructor | `LessonService` receives a `LessonGenerationService`, it never creates one |
+
+Do not create an interface plus `XxxImpl` pair when there is one implementation and no boundary to replace. An interface must earn its place by having two implementations or by isolating an external system.
+
+#### Spring and Spring Boot patterns
+- **Constructor injection, `private final` fields.** No field or setter injection (`@Autowired` on a field fails the build). Use Lombok's `@RequiredArgsConstructor` to keep it short.
+- **Typed configuration.** Settings are bound with `@ConfigurationProperties` records (validated with `@Validated`), never scattered `@Value` fields. The properties live under `prepai.*` (see 10.4).
+- **Records for DTOs and value objects** (immutable). JPA entities are normal classes with no setters that break invariants; never `@Data` on an entity (the build rejects it). Lombok is limited to `@RequiredArgsConstructor`, `@Getter`, `@Builder` and `@Slf4j`.
+- **Thin controllers.** `@RestController`, `@Valid` on request bodies, one call to a service, return a DTO. No `try/catch`: errors are `ApiException`s turned into the 4.7 format by `GlobalExceptionHandler`.
+- **Transactions belong to services.** `@Transactional` on service methods (`readOnly = true` for queries), never on controllers or repositories.
+- **Repositories** are Spring Data interfaces with derived query methods; use `@Query` only when a derived name becomes unreadable. No business rules inside.
+- **Mapping** between entities and DTOs is done by MapStruct mappers, not by hand in services or controllers.
+- **Time, randomness and IDs are injected** (`Clock`, a `Supplier<UUID>`) so tests are deterministic.
+- **Logging** through SLF4J with parameters (`log.info("Reserved session for user {}", userId)`); no secrets, emails or request bodies.
+- **Return values:** use `Optional` for "may be absent" results, never `null`; never pass `null` as an argument or accept `Optional` parameters.
+- **Profiles over code.** Differences between local and production live in `application-*.yml`, never in `if (isProd)` code.
+
+#### Testability
+- Business logic is separated from I/O: the rules sit in plain classes that take their collaborators through the constructor, so a unit test needs no Spring context.
+- Every public service method has unit tests for the happy path and for each failure path. Tests are written with JUnit 5, Mockito and AssertJ in Arrange-Act-Assert form: one behaviour per test, named for the behaviour (`rejectsExpiredToken`, `releasesSessionWhenGenerationFails`).
+- Use the narrowest Spring slice that works: plain unit test first, then `@WebMvcTest` for controllers and `@DataJpaTest` with Testcontainers for repositories. `@SpringBootTest` is for the few full-flow tests owned by Agent 8.
+- Never call real external systems in tests (Claude, VoiceStudio, Razorpay, SMTP). Use fakes behind the same interfaces the production code uses.
+- A test that asserts nothing, or that only checks mocks were called, is not a test.
+
+#### Quality gates (run by `./gradlew check` and in CI)
+| Gate | What it enforces | Where it lives |
+|------|------------------|----------------|
+| Checkstyle 14 | The hard limits above, imports, naming, leftovers | `prepai/config/checkstyle/checkstyle.xml` |
+| ArchUnit tests | The 9.1.1 rules: layering, entities and repositories private to their module, no field injection, controllers return no entities, no cycles between modules; every module has a `MODULE.md` | `src/test/java/.../architecture/ArchitectureTest.java` and `ModuleDocumentationTest.java` |
+| JaCoCo | At least 80% line coverage on every class in a `service` package | `build.gradle` |
+| Lombok config | Rejects `@Data` and `val` | `prepai/lombok.config` |
+| Compiler lint | Deprecation, unchecked and raw-type warnings are shown | `build.gradle` |
+
+A task is not finished while `./gradlew check` is red. Agents never disable a gate to get a build through.
+
+#### What reviewers reject (the "AI slop" list)
+- Comments that repeat the code (`// get the user`), or placeholder text and dead code left behind.
+- Generic names, `Impl` classes for the sake of it, and speculative abstractions "for later".
+- God services that do several jobs, methods that mix coordination with detail, boolean flags that switch a method's behaviour.
+- Copy-pasted blocks instead of one shared method, and long parameter lists instead of a parameter object.
+- Catch-all `try/catch` that hides a failure, defensive `null` checks everywhere instead of a clear contract, logging noise.
+- Tests that mock everything, assert nothing, or test the framework.
+
+#### Definition of done (applies on top of every task card)
+1. `./gradlew check` is green: Checkstyle, ArchUnit, tests and coverage.
+2. The diff reads top-down: public methods are short lists of named steps.
+3. Every new class has one clear sentence describing its job, and fits the package map in its module's `MODULE.md`.
+4. Failure paths are tested, not just the happy path.
+5. The agent ran `/simplify` and `/code-review` on its own diff and fixed what they found.
+6. The module's `MODULE.md` is updated: the package map is true and the status checklist is ticked.
 
 ### 9.2 Agent Assignments
 
 ---
 
 #### AGENT 1: Project Scaffolder (SEF Phase)
-**Code and `agent.md`:** see the table in 9.1.1. Read `agent1/agent.md` first.
+**Builds:** `common/config`, the build and quality gates, the repository layout. Read `prepai/ARCHITECTURE.md` and `common/MODULE.md` first (module table in 9.1.1).
 **Model:** Claude Sonnet 5.5
 **Priority:** Run FIRST — all other agents depend on this
 
@@ -1647,14 +1755,15 @@ The agent updates `agent.md` as part of its work: tick the checklist, and keep t
 5. GitHub Actions CI: build → test → deploy to VPS
 6. `.env.example` with all required environment variables (including the LLM resilience, image, audio, email, privacy and observability variables in 10.3)
 7. Nginx config template for reverse proxy
-8. Apply the code structure rules in 9.1.1: create the empty-package-free skeleton, the `agent.md` files for Agents 5, 6, 7 and 9 at the locations in the 9.1.1 table, and an `agent.md` template. (The `agent.md` files for Agents 1 to 4 and 8 already exist in the backend project)
+8. Own the quality gates of 9.1.2 (Checkstyle config, the ArchUnit test, `lombok.config`, `.editorconfig`, the JaCoCo rule); they are already in place, keep `./gradlew check` green
+9. Apply the code structure rules in 9.1.1: create the `MODULE.md` files for the frontend features (Agents 5 to 7) and `ops/` (Agent 9) at the locations in the 9.1.1 table, using the Rule 8 template. (The backend module docs, `ARCHITECTURE.md` and `TESTING.md` already exist)
 
 **Acceptance:** `./scripts/install.sh` sets up VPS, `./gradlew bootRun` starts the backend on :8085 with the `local` profile (and `SPRING_PROFILES_ACTIVE=prod` starts it with the production profile), `ng serve --port 4300` starts frontend. `http://localhost:9091/actuator/prometheus` returns metrics.
 
 ---
 
 #### AGENT 2: Backend — Auth & User Service
-**Code and `agent.md`:** `prepai/src/main/java/com/ascorp/prepai/agent2/` (read `agent.md` there first). Packages: `auth`, `user`, `errors`, `privacy`, `ratelimit`, `usage`.
+**Builds:** the `account` module (`auth`, `user`, `privacy`), the `quota` module (`ratelimit`, `usage`) and `common/errors`, under `prepai/src/main/java/com/ascorp/prepai/`. Read each module's `MODULE.md` first.
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
 
@@ -1668,7 +1777,7 @@ The agent updates `agent.md` as part of its work: tick the checklist, and keep t
 7. Usage tracking service — log session duration, enforce the daily session limit and per-session minute limit of the plan
 8. Request validation with @Valid annotations
 9. Shared error infrastructure (4.7): `ErrorCode` enum, `ApiError` response, `GlobalExceptionHandler` (@ControllerAdvice), custom `AuthenticationEntryPoint` and `AccessDeniedHandler` so 401/403 use the same shape, and a filter that sets `traceId` in the MDC and the `X-Trace-Id` header. Other agents add domain exceptions to this, not their own handlers
-10. Rate limiter with reserve → commit/release semantics: reserve on request start, commit only when a lesson is delivered, release on any system failure. Expose it as a service for Agents 3 and 4. Add burst limiting (`RATE_LIMITED` with `retryAfterSeconds`)
+10. Rate limiter with reserve → commit/release semantics: reserve on request start, commit only when a lesson is delivered, release on any system failure. Expose it as a service for Agent 4: `reserveSession(userId)` returns an `AutoCloseable` `SessionReservation`, and closing it without `commit()` releases the session. Add burst limiting (`RATE_LIMITED` with `retryAfterSeconds`)
 11. Privacy and consent (2.7): record terms/privacy acceptance with policy version; age gate sets `is_minor`; guardian-consent email and confirm endpoint; enforce `CONSENT_REQUIRED`; email verification (Spring Mail, SMTP env vars) enforced before lessons (`EMAIL_NOT_VERIFIED`); per-IP signup throttling in Redis
 12. `GET /users/me/export` and `DELETE /users/me`, plus a nightly job that hard-purges soft-deleted users after 30 days and removes lessons older than `LESSON_RETENTION_DAYS`
 13. Logging rules: user UUIDs only, never emails, tokens or request bodies
@@ -1678,7 +1787,7 @@ The agent updates `agent.md` as part of its work: tick the checklist, and keep t
 ---
 
 #### AGENT 3: Backend — LLM Service Layer
-**Code and `agent.md`:** `prepai/src/main/java/com/ascorp/prepai/agent3/` (read `agent.md` there first). Packages: `llm`, `validation`, `embedding`, `rag`, `cache`, `imageextract`.
+**Builds:** the `generation` module (`llm`, `validation`, `embedding`, `rag`, `cache`, `imageextract`) and the lesson contract in `common/model/lesson`. Read `generation/MODULE.md` first.
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
 
@@ -1703,7 +1812,7 @@ The agent updates `agent.md` as part of its work: tick the checklist, and keep t
 ---
 
 #### AGENT 4: Backend — Lesson, Subscription & TTS API
-**Code and `agent.md`:** `prepai/src/main/java/com/ascorp/prepai/agent4/` (read `agent.md` there first). Packages: `lesson`, `subscription`, `tts`.
+**Builds:** the `lesson` module, the `billing` module (`subscription`) and the `speech` module (`tts`). Read each module's `MODULE.md` first.
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 2, Agent 3
 
@@ -1727,7 +1836,7 @@ The agent updates `agent.md` as part of its work: tick the checklist, and keep t
 ---
 
 #### AGENT 5: Frontend — Canvas/Whiteboard Engine (Konva.js + KaTeX)
-**Code and `agent.md`:** `frontend/src/app/features/lesson/whiteboard/` (`agent.md` in that folder).
+**Builds:** `frontend/src/app/features/lesson/whiteboard/` (`MODULE.md` in that folder).
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
 **This is the CORE differentiator — highest quality bar**
@@ -1750,7 +1859,7 @@ The agent updates `agent.md` as part of its work: tick the checklist, and keep t
 ---
 
 #### AGENT 6: Frontend — TTS & Voice Sync
-**Code and `agent.md`:** `frontend/src/app/features/lesson/lesson-player/` and `core/services/tts.service.ts` (`agent.md` in the lesson-player folder).
+**Builds:** `frontend/src/app/features/lesson/lesson-player/` and `core/services/tts.service.ts` (`MODULE.md` in the lesson-player folder).
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 5
 
@@ -1771,7 +1880,7 @@ The agent updates `agent.md` as part of its work: tick the checklist, and keep t
 ---
 
 #### AGENT 7: Frontend — UI/UX
-**Code and `agent.md`:** `frontend/src/app/features/` (landing, auth, dashboard, lesson-input, mastery-check, pricing, profile) and `shared/` (`agent.md` in `features/`).
+**Builds:** the `frontend/src/app/features/` folders landing, auth, dashboard, lesson-input, mastery-check, pricing and profile, plus `shared/` (a `MODULE.md` in each feature folder).
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 5, Agent 6
 
@@ -1796,7 +1905,7 @@ The agent updates `agent.md` as part of its work: tick the checklist, and keep t
 ---
 
 #### AGENT 8: Testing & Integration
-**Code and `agent.md`:** `prepai/src/test/java/com/ascorp/prepai/agent8/` and `frontend/e2e/` (read `agent8/agent.md` first). Each agent's own unit tests mirror its package under `src/test/java/com/ascorp/prepai/agentN/`.
+**Builds:** the cross-cutting test packages (`architecture`, `integration`, `adversarial`, `performance`, `support`) under `prepai/src/test/java/com/ascorp/prepai/`, and `frontend/e2e/`. Read `TESTING.md` there first. Each module's own unit tests mirror its package.
 **Model:** Claude Sonnet 5.5
 **Depends on:** All agents
 
@@ -1826,7 +1935,7 @@ The agent updates `agent.md` as part of its work: tick the checklist, and keep t
 ---
 
 #### AGENT 9: DevOps Agent
-**Code and `agent.md`:** `scripts/`, `nginx/` and `ops/` (`agent.md` in `ops/`).
+**Builds:** `scripts/`, `nginx/` and `ops/` (`MODULE.md` in `ops/`).
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
 
@@ -2133,36 +2242,27 @@ VPS: 16GB RAM / 200GB disk / Debian
 └── SDKMAN (Java 21), nvm (Node.js 18+)
 ```
 
-### 14.2 AIDLC + SEF Hybrid Execution Plan
-```
-Day 1 (SEF Phase):
-  Agent 1 scaffolds entire monorepo → all other agents have a skeleton to work in
+### 14.2 Build Order (AIDLC + SEF hybrid)
 
-Day 2+ (AIDLC Phase — parallel):
-  Agent 2 (Auth)     ─┐
-  Agent 3 (LLM)      ─┤── Can run in parallel (independent)
-  Agent 5 (Canvas)    ─┤
-  Agent 9 (DevOps)    ─┘
+The build runs as one continuous pipeline. There are no calendar days or schedules: each agent starts as soon as the agents it depends on are finished, and independent agents run in parallel.
 
-  Agent 4 (APIs)      ─── Depends on Agent 2 + 3
-  Agent 6 (TTS Sync)  ─── Depends on Agent 5
-  Agent 7 (UI)        ─── Depends on Agent 5 + 6
-
-  Agent 8 (Testing)   ─── Runs last, after all features
-
-Nightly (Ongoing):
-  Self-Evolving Agent ─── Verifies answer quality with Fable 5.1
-  Adversarial Agent   ─── Tries to break things, grows test suite
-```
+| Step | Agents | Why this order |
+|------|--------|----------------|
+| 1 | Agent 1 (scaffolder, SEF) | Every other agent needs the skeleton: build, profiles, quality gates, folder layout |
+| 2 | Agents 2, 3, 5 and 9, in parallel | Independent of each other; each needs only Agent 1's skeleton |
+| 3 | Agents 4 and 6 | Agent 4 needs Agents 2 and 3; Agent 6 needs Agent 5 |
+| 4 | Agent 7 | Needs Agents 5 and 6 (whiteboard and voice sync) |
+| 5 | Agent 8 | Integration and end-to-end tests once all features exist |
+| Ongoing after launch | Self-evolving verifier (Fable 5.1) and adversarial tester | Nightly quality checks (8.1, 8.2) |
 
 **Agent dependency diagram (Mermaid):**
 
 ```mermaid
 flowchart LR
-    A1["Agent 1<br/>Scaffolder<br/>SEF, day 1"]
-    A2["Agent 2<br/>Auth, user, errors, privacy"]
+    A1["Agent 1<br/>Scaffolder<br/>SEF, runs first"]
+    A2["Agent 2<br/>Account, quota, errors"]
     A3["Agent 3<br/>LLM service layer"]
-    A4["Agent 4<br/>Lesson, subscription, TTS API"]
+    A4["Agent 4<br/>Lesson, billing, speech"]
     A5["Agent 5<br/>Canvas and whiteboard engine"]
     A6["Agent 6<br/>TTS and voice sync"]
     A7["Agent 7<br/>UI/UX"]
@@ -2204,7 +2304,7 @@ Open action items that need a person (mostly Krishna) rather than an agent. Upda
 | TODO-5 | **Set up PrepAI in the shared Grafana** (`https://algorithmyc.com/gfn/`): using the Grafana admin login (kept by Krishna and never written to the repo, this spec, env examples or logs), create a `PrepAI` folder and a service-account token limited to it, put the token in `GRAFANA_API_TOKEN`, choose the email route for alerts labelled `app=prepai`, and confirm login is required and anonymous access is off. | Krishna | `grafana-sync.sh` and alerting | Open |
 | TODO-6 | **Check embedding quality.** Test `all-MiniLM-L6-v2` on about 100 JEE/NEET paraphrase and near-miss pairs, and tune `RAG_MIN_SIMILARITY` (0.95 is a starting point). | Krishna / Agent 3 | Enabling the RAG cache | Open |
 | TODO-7 | **Choose the domain and email (SMTP) provider.** Needed for `APP_BASE_URL`, CORS, verification emails and guardian-consent emails. | Krishna | Registration flow in production | Open |
-| TODO-8 | **Run the pre-launch cache seed** (`QUALITY_SEED_SIZE`) once the verifier is built (6.3 cold start). | Krishna | Nothing; improves day-1 cost | Open |
+| TODO-8 | **Run the pre-launch cache seed** (`QUALITY_SEED_SIZE`) once the verifier is built (6.3 cold start). | Krishna | Nothing; lowers cost from the first week after launch | Open |
 
 ---
 
