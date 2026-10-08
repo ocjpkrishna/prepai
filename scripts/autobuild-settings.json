@@ -71,5 +71,6 @@
       "Edit(//home/krishna/Workspace/perpai/.claude/**)",
       "Edit(//home/krishna/Workspace/perpai/scripts/autobuild*)"
     ]
-  }
+  },
+  "disableClaudeAiConnectors": true
 }

@@ -27,6 +27,10 @@ DRY_RUN="${DRY_RUN:-0}"
 FIVE=0; FIVE_RESET=0; WEEK=0; WEEK_RESET=0; STATUS=allowed; OVERAGE=false
 LAST_OUT=""
 
+# Unattended sessions get no MCP servers: it saves about 5k prompt tokens and several helper processes
+# per session, and keeps them away from the Gmail, Drive and Hostinger connectors.
+NO_MCP=(--strict-mcp-config --mcp-config '{"mcpServers":{}}')
+
 mkdir -p "$STATE_DIR/logs"
 
 log() {
@@ -91,7 +95,7 @@ read_usage() {
 probe_usage() {
 	local out="$STATE_DIR/logs/probe-$(date +%H%M%S).jsonl"
 	timeout 120 claude -p "Reply with the single word OK." --model haiku --settings "$SETTINGS" \
-		--permission-mode dontAsk --output-format stream-json --verbose --no-session-persistence \
+		--permission-mode dontAsk "${NO_MCP[@]}" --output-format stream-json --verbose --no-session-persistence \
 		< /dev/null > "$out" 2> /dev/null || true
 	read_usage "$out"
 	log "plan usage: five-hour $(percent "$FIVE"), weekly $(percent "$WEEK") (status ${STATUS})"
@@ -159,7 +163,7 @@ run_session() {
 	local id="$1" model="$2" prompt="$3"
 	LAST_OUT="$STATE_DIR/logs/row-${id}-$(date +%H%M%S).jsonl"
 	if ! timeout "$ROW_TIMEOUT" nice -n 15 claude -p "$prompt" --model "$model" \
-		--settings "$SETTINGS" --permission-mode dontAsk --max-budget-usd "$ROW_BUDGET_USD" \
+		--settings "$SETTINGS" --permission-mode dontAsk --max-budget-usd "$ROW_BUDGET_USD" "${NO_MCP[@]}" \
 		--output-format stream-json --verbose --no-session-persistence \
 		< /dev/null > "$LAST_OUT" 2> "${LAST_OUT}.err"; then
 		log "row ${id}: the session ended with an error, see ${LAST_OUT}"
