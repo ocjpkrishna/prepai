@@ -2310,4 +2310,4 @@ Open action items that need a person (mostly Krishna) rather than an agent. Upda
 
 ---
 
-*End of specification v2.3. This document is the single source of truth for the AIDLC pipeline. All agents reference this document. Any deviation requires updating this spec first.*
+*End of specification v2.10. This document is the single source of truth for the AIDLC pipeline. All agents reference this document. Any deviation requires updating this spec first.*
