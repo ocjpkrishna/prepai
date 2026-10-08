@@ -8,12 +8,13 @@ Unattended sessions cannot ask questions, so every choice that would normally be
 3. **Frontend stack.** Current stable Angular from `npx @angular/cli new`, standalone components, Angular Material, Konva used directly (no `ng2-konva` wrapper), KaTeX, Playwright for E2E with the system Chromium at `/usr/bin/chromium`. Use the test runner that `ng new` generates.
 4. **Tests use local databases, not Docker.** Integration tests use PostgreSQL database `prepai_test` (user `prepai`, pgvector installed) and Redis database 15, through a `test` Spring profile. Testcontainers stays in `build.gradle` but is not used in this build (no Docker on the shared VPS for tests).
 5. **Smoke test.** Row 2 replaces the generated `PrepaiApplicationTests` with a light context test on the `test` profile so `./gradlew check` does not need a real LLM key, a model download or the production database. If the local embedding model cannot load in tests, exclude its auto-configuration in the `test` profile.
-6. **No real external calls.** Tests and the build never call Claude, VoiceStudio, Razorpay, SMTP or Google. Each sits behind a small interface with a fake. The application starts with the dummy key from the `local` profile.
-7. **Gradle.** Run `nice -n 15 ./prepai/gradlew -p prepai -q <tasks>` from the repo root (memory limits are in `prepai/gradle.properties`). One Gradle process at a time.
-8. **No long-running processes.** Do not leave a server, a Gradle daemon or a browser running after a step. Ports 8085, 9091 and 9095 stay free except during a short test.
-9. **Spec edits.** The spec is read-only during the build except for the version line, the changelog and corrections found while building; log each correction below.
-10. **Commits.** One per finished feature or bug fix, `git add` with explicit paths (never `git add -A`), messages `feat(<module>): ...`, `fix(<module>): ...`, `test(...)`, `docs(...)`, `chore(...)`. Never push.
-11. **Shared VPS.** No `sudo`, no access to MongoDB, QuestDB, Grafana or the trading services, nothing outside the repo directory. `creds.md` in the repo root is off limits and is git-ignored.
+6. **No real external calls, and no Anthropic API key exists.** The Claude Pro plan does not include API access, and no API key is available. Tests and the build never call Claude, VoiceStudio, Razorpay, SMTP or Google. Each sits behind a small interface with a fake. The application starts with the dummy key from the `local` profile, and no step may ask for a real key.
+7. **Fake lesson provider.** Without a key the app uses a `FakeLessonProvider` (selected with `prepai.llm.provider=fake`, the default in the `local` and `test` profiles). It returns canned lessons built from the sample lesson in spec 3.2, passed through the real validator, so `lesson`, the whiteboard and the UI work end to end and can be demonstrated. The real `ClaudeProvider` is still written and unit-tested against a mocked client; it is simply never exercised against the live API.
+8. **Gradle.** Run `nice -n 15 ./prepai/gradlew -p prepai -q <tasks>` from the repo root (memory limits are in `prepai/gradle.properties`). One Gradle process at a time.
+9. **No long-running processes.** Do not leave a server, a Gradle daemon or a browser running after a step. Ports 8085, 9091 and 9095 stay free except during a short test.
+10. **Spec edits.** The spec is read-only during the build except for the version line, the changelog and corrections found while building; log each correction below.
+11. **Commits.** One per finished feature or bug fix, `git add` with explicit paths (never `git add -A`), messages `feat(<module>): ...`, `fix(<module>): ...`, `test(...)`, `docs(...)`, `chore(...)`. Never push.
+12. **Shared VPS.** No `sudo`, no access to MongoDB, QuestDB, Grafana or the trading services, nothing outside the repo directory. `creds.md` in the repo root is off limits and is git-ignored.
 
 ## Decisions made during the build
 (One line each: date, row, decision, reason.)
@@ -23,7 +24,7 @@ Collected here so nobody has to be interrupted. Review after the build.
 
 | Item | Why it is needed |
 |------|------------------|
-| Real `CLAUDE_API_KEY` | One live smoke test of Sonnet 5.5 lesson generation and image extraction |
+| Anthropic API key (a separate pay-per-use account; the Claude Pro plan does not provide one) | **Not available.** Needed before the product can generate real lessons; until then the fake provider is used. Also needed for one live smoke test of lesson generation and image extraction, and to measure real cost per lesson (spec 15, TODO-4) |
 | Razorpay test keys and webhook secret | End-to-end payment flow (spec 15, TODO-3) |
 | Google OAuth client id | Real Google sign-in |
 | Domain and SMTP provider | Verification and guardian-consent emails (TODO-7) |
