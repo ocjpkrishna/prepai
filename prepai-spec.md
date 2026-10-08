@@ -1,7 +1,7 @@
 # PrepAI — Product Specification Document
 ## AI Whiteboard Tutor for Indian Students
 
-**Version:** 2.6
+**Version:** 2.7
 **Date:** October 8, 2026
 **Author:** Krishna (Ascorp Softwares)
 **Status:** Ready for AIDLC + SEF Pipeline
@@ -14,6 +14,7 @@
 - v2.4 — Spring Boot 4.1.1 (project generated with Spring Initializr, Spring AI 2.0.1). Dependency list reconciled with `build.gradle`: springdoc, jjwt, logstash-logback-encoder, Spring AI vector stores and the GraalVM native plugin dropped; JWT and Google sign-in via Spring Security's OAuth2 resource server; pgvector mapped with `hibernate-vector`; Razorpay SDK and jsoup added. Mermaid diagrams added throughout.
 - v2.5 — Claude Sonnet 5.5 on every agent card (DeepSeek removed). Spring profiles: `application.yaml` (shared), `application-local.yml` (default) and `application-prod.yml`, with ports, binds and secrets defined in the new section 10.4.
 - v2.6 — PostgreSQL 17.11 + pgvector 0.8.0 and Redis 8.0.2 installed on the VPS; spec versions updated from PostgreSQL 16 and Redis 7 to match the Debian 13 packages.
+- v2.7 — Code structure rules (9.1.1): one `agentN` package per agent, feature sub-packages with controller/service/repository/model layers, shared models in `model/common`, and an `agent.md` per agent. Added `refresh_tokens` and `verification_tokens` tables (missing for Agent 2), and moved lesson orchestration (reserve/commit/release) to Agent 4.
 
 ---
 
@@ -892,11 +893,34 @@ CREATE TABLE quality_corrections (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Auth: refresh tokens (rotation) and one-time email / guardian-consent tokens
+CREATE TABLE refresh_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(64) NOT NULL UNIQUE,      -- SHA-256 of the token; the token itself is never stored
+    family_id UUID NOT NULL,                     -- all tokens issued from one login; reuse of a rotated token revokes the family
+    expires_at TIMESTAMP NOT NULL,
+    revoked_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE verification_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(20) NOT NULL,                   -- EMAIL | GUARDIAN
+    token_hash VARCHAR(64) NOT NULL UNIQUE,
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX idx_lessons_user_id ON lessons(user_id);
 CREATE INDEX idx_lessons_created_at ON lessons(created_at DESC);
 CREATE INDEX idx_usage_log_user_date ON usage_log(user_id, session_date);
 CREATE INDEX idx_subscriptions_user ON subscriptions(user_id);
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX idx_verification_tokens_user ON verification_tokens(user_id);
 -- HNSW instead of ivfflat: ivfflat needs representative data when the index is built, and this table starts empty
 CREATE INDEX idx_problem_embeddings_vector ON problem_embeddings USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX idx_problem_embeddings_verified ON problem_embeddings(subject) WHERE verified = TRUE;
@@ -910,6 +934,8 @@ erDiagram
     users ||--o{ lessons : "creates"
     users ||--o{ usage_log : "consumes sessions"
     users ||--o{ subscriptions : "subscribes"
+    users ||--o{ refresh_tokens : "holds"
+    users ||--o{ verification_tokens : "receives"
     lessons ||--o{ usage_log : "counted in"
     lessons ||--o{ quality_corrections : "may be corrected by"
 
@@ -952,6 +978,22 @@ erDiagram
         string status
         datetime current_period_end
     }
+    refresh_tokens {
+        uuid id PK
+        uuid user_id FK
+        string token_hash UK
+        uuid family_id
+        datetime expires_at
+        datetime revoked_at
+    }
+    verification_tokens {
+        uuid id PK
+        uuid user_id FK
+        string type "EMAIL, GUARDIAN"
+        string token_hash UK
+        datetime expires_at
+        datetime used_at
+    }
     quality_corrections {
         uuid id PK
         uuid lesson_id FK
@@ -976,7 +1018,7 @@ erDiagram
 
 ### 5.2 Flyway Migrations
 
-All schema changes go through Flyway. Migration files:
+All schema changes go through Flyway. Each agent creates only the migrations it owns: V1, V3, V7, V8 belong to Agent 2; V2 and V4 to Agent 4; V5 and V6 to Agent 3. The `vector` extension in V5 must already exist (created by a superuser, see 2.5), because the application role cannot create it. Migration files:
 ```
 src/main/resources/db/migration/
 ├── V1__create_users_table.sql
@@ -985,6 +1027,8 @@ src/main/resources/db/migration/
 ├── V4__create_subscriptions_table.sql
 ├── V5__enable_pgvector_and_embeddings.sql
 ├── V6__create_quality_corrections_table.sql
+├── V7__create_refresh_tokens_table.sql
+├── V8__create_verification_tokens_table.sql
 ```
 
 ### 5.3 Redis Keys
@@ -1476,11 +1520,117 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 - **Repo:** Monorepo — `prepai/` with `backend/` and `frontend/` directories
 - **VPS:** 16GB RAM, 200GB disk, Debian (no Docker)
 
+### 9.1.1 Code Structure & Conventions (mandatory for every agent)
+
+The goal is that anyone can open the project and see which agent wrote what, and what each piece does, without reading the code.
+
+**Rule 1 - one folder per agent.** All backend code of an agent lives under `prepai/src/main/java/com/ascorp/prepai/agentN/` and nowhere else. The only classes outside the agent folders are `PrepaiApplication` and the shared models in `com.ascorp.prepai.model.common` (Rule 5).
+
+**Rule 2 - one sub-package per feature.** Inside `agentN/`, each feature gets a lowercase package named after what it does (Java package names are lowercase). Example for Agent 2: `auth`, `user`, `errors`, `privacy`, `ratelimit`, `usage`.
+
+**Rule 3 - layers inside a feature.** Create only the layers a feature actually needs. No empty packages.
+
+```
+agent2/
+├── agent.md                      <- what this agent does and its context (Rule 8)
+└── auth/                         <- one feature
+    ├── controller/               REST controllers, the UI-facing layer
+    ├── service/                  business logic
+    ├── repository/               database / Redis access
+    ├── model/
+    │   ├── entity/               this feature's own JPA entities
+    │   └── dto/                  this feature's request and response objects
+    ├── mapper/                   MapStruct mappers (entity <-> dto)
+    └── config/                   feature-specific Spring configuration, only if needed
+```
+
+**Rule 4 - strict layering: Controller → Service → Repository.**
+
+| Layer | Does | Must not |
+|-------|------|----------|
+| `controller` | HTTP only: routes, `@Valid`, status codes, calls one service, returns DTOs | Contain business logic, call a repository, return an entity |
+| `service` | Business rules, transactions, calls repositories, other features' services, and external clients | Know about HTTP (`HttpServletRequest`, `ResponseEntity`) |
+| `repository` | Talks to PostgreSQL (Spring Data) or Redis, nothing else | Contain business rules |
+
+```mermaid
+flowchart LR
+    subgraph feature["One feature, for example agent2/auth"]
+        direction LR
+        c["controller<br/>REST, UI facing"] --> s["service<br/>business logic"] --> r["repository<br/>database or Redis access"]
+        c -.-> dto["model/dto"]
+        s -.-> mp["mapper"]
+        s -.-> ent["model/entity"]
+        r -.-> ent
+    end
+    ui(["Angular UI"]) --> c
+    r --> db[("PostgreSQL / Redis")]
+```
+
+Features with no REST endpoint have no `controller` package, and features with no storage have no `repository` package. For example, Agent 3 has no controllers (Agent 4 exposes the endpoints), and `agent2/errors` has neither a controller nor a repository.
+
+**Rule 5 - models.**
+- Every feature owns its models in its own `model/entity` and `model/dto`.
+- A class that more than one feature needs moves into `com.ascorp.prepai.model.common`, organised by domain (`enums`, `lesson`, and so on). Typical contents: the `Plan`, `Subject`, `Exam` and `Difficulty` enums and the `LessonRequest` / `LessonResponse` contract with its nested classes (3.1, 3.2).
+- A JPA entity belongs to exactly one feature and is never shared. Other features refer to it by id (`UUID userId`, not a `User` object) or get a DTO from the owner's service.
+
+**Rule 6 - cross-agent calls.** An agent may call another agent's public **service** classes and use `model/common`. It must never use another agent's repository or entity. Agent 2's `errors` package is the shared error foundation, so every agent may use it.
+
+```mermaid
+flowchart TB
+    common["model/common<br/>enums, lesson contract"]
+    errs["agent2/errors<br/>ApiException, ErrorCode"]
+    a2["agent2<br/>auth, user, privacy, ratelimit, usage"]
+    a3["agent3<br/>llm, validation, rag, embedding, cache, imageextract"]
+    a4["agent4<br/>lesson, subscription, tts"]
+    a8["agent8<br/>cross-cutting tests"]
+    a4 -->|"LessonGenerationService"| a3
+    a4 -->|"RateLimiterService, UsageService, AccountGateService"| a2
+    a2 --> errs
+    a3 --> errs
+    a4 --> errs
+    a2 --> common
+    a3 --> common
+    a4 --> common
+    a8 -.->|"tests all"| a4
+```
+
+**Rule 7 - naming and tests.**
+- Class names: `XxxController`, `XxxService`, `XxxRepository`, `XxxMapper`; DTOs end in `Request`, `Response` or `Dto`; entities are singular nouns (`User`, `Lesson`).
+- Tests mirror the production path: `src/test/java/com/ascorp/prepai/agentN/<feature>/<layer>/XxxTest.java`. Cross-cutting tests (integration, adversarial, performance) live in `agent8/` of the test tree.
+
+**Rule 8 - every agent has an `agent.md`** at the root of its folder (`.../agentN/agent.md`). It is the first thing the agent reads and the first thing a human opens. It must contain:
+1. Purpose, and the context the agent works in (what the rest of the system expects from it).
+2. The package map: every feature package and what lives in it, with one line per main class.
+3. The public surface other agents may call (endpoints and service classes).
+4. Data owned (tables, Redis keys) and configuration used (properties, environment variables).
+5. Rules specific to this agent, with links to the spec sections.
+6. Definition of done (the acceptance criteria of the task card).
+7. A status checklist of its tasks.
+
+The agent updates `agent.md` as part of its work: tick the checklist, and keep the package map true to the code.
+
+**Where each agent's code and `agent.md` live:**
+
+| Agent | Code location | `agent.md` |
+|-------|---------------|------------|
+| 1 Scaffolder | `.../com/ascorp/prepai/agent1/` (shared configuration beans); repo-level files: `scripts/`, `.github/workflows/`, `.env.example`, nginx template, Angular scaffold | `.../agent1/agent.md` |
+| 2 Auth, user, errors, privacy | `.../com/ascorp/prepai/agent2/` | `.../agent2/agent.md` |
+| 3 LLM service layer | `.../com/ascorp/prepai/agent3/` | `.../agent3/agent.md` |
+| 4 Lesson, subscription, TTS API | `.../com/ascorp/prepai/agent4/` | `.../agent4/agent.md` |
+| 5 Whiteboard engine | `frontend/src/app/features/lesson/whiteboard/` (plus `core/models/canvas-action.model.ts`) | `frontend/src/app/features/lesson/whiteboard/agent.md` |
+| 6 TTS and voice sync | `frontend/src/app/features/lesson/lesson-player/` (plus `core/services/tts.service.ts`) | `frontend/src/app/features/lesson/lesson-player/agent.md` |
+| 7 UI/UX | `frontend/src/app/features/` (landing, auth, dashboard, lesson-input, mastery-check, pricing, profile) and `shared/` | `frontend/src/app/features/agent.md` |
+| 8 Testing | `src/test/java/com/ascorp/prepai/agent8/` and `frontend/e2e/`; each agent's own unit tests mirror its package | `src/test/java/com/ascorp/prepai/agent8/agent.md` |
+| 9 DevOps | `scripts/`, `nginx/`, `ops/` | `ops/agent.md` |
+
+`.../` above means `prepai/src/main/java`. The Angular app keeps the feature-based layout of 7.1 (it already separates code by feature), so for Agents 5 to 7 the `agent.md` sits in each agent's main folder instead of an `agentN` package. Agent 1 creates the `agent.md` files for Agents 5 to 7 and 9 when it scaffolds the frontend and ops folders, using the template in Rule 8.
+
 ### 9.2 Agent Assignments
 
 ---
 
 #### AGENT 1: Project Scaffolder (SEF Phase)
+**Code and `agent.md`:** see the table in 9.1.1. Read `agent1/agent.md` first.
 **Model:** Claude Sonnet 5.5
 **Priority:** Run FIRST — all other agents depend on this
 
@@ -1497,12 +1647,14 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 5. GitHub Actions CI: build → test → deploy to VPS
 6. `.env.example` with all required environment variables (including the LLM resilience, image, audio, email, privacy and observability variables in 10.3)
 7. Nginx config template for reverse proxy
+8. Apply the code structure rules in 9.1.1: create the empty-package-free skeleton, the `agent.md` files for Agents 5, 6, 7 and 9 at the locations in the 9.1.1 table, and an `agent.md` template. (The `agent.md` files for Agents 1 to 4 and 8 already exist in the backend project)
 
 **Acceptance:** `./scripts/install.sh` sets up VPS, `./gradlew bootRun` starts the backend on :8085 with the `local` profile (and `SPRING_PROFILES_ACTIVE=prod` starts it with the production profile), `ng serve --port 4300` starts frontend. `http://localhost:9091/actuator/prometheus` returns metrics.
 
 ---
 
 #### AGENT 2: Backend — Auth & User Service
+**Code and `agent.md`:** `prepai/src/main/java/com/ascorp/prepai/agent2/` (read `agent.md` there first). Packages: `auth`, `user`, `errors`, `privacy`, `ratelimit`, `usage`.
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
 
@@ -1526,6 +1678,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 3: Backend — LLM Service Layer
+**Code and `agent.md`:** `prepai/src/main/java/com/ascorp/prepai/agent3/` (read `agent.md` there first). Packages: `llm`, `validation`, `embedding`, `rag`, `cache`, `imageextract`.
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
 
@@ -1543,13 +1696,14 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 11. Image extraction service (3.1.1): check magic bytes, strip EXIF, call Sonnet 5.5 vision, return `{problemText, confidence, hasDiagram}`; `LOW` confidence raises `IMAGE_UNREADABLE`; never persist the image
 12. Prompt-injection hardening: wrap student text in `<problem>` tags (6.2) and apply system rules 9–10 (6.1)
 13. Metrics and logging per 8.4: lesson counters and latency, tokens, cost, retry reason, validation failures, RAG lookup results and unverified backlog, breaker state. Persist `source`, `retried`, `retry_reason`, `validation_attempts` and `generation_ms` on the lesson row
-14. Integrate with Agent 2's rate limiter: reserve before generating, commit on success, release on any failure
+14. Expose `LessonGenerationService` as the single entry point for Agent 4 (input: `LessonRequest`, output: validated `LessonResponse` plus generation metadata). It does not touch rate limits or storage; Agent 4's lesson service reserves, commits and releases the session around it
 
 **Acceptance:** POST /api/v1/lessons/generate with a physics problem returns valid LessonResponse JSON. RAG cache hit returns instant response. All logging via SLF4J. Garbage JSON on the first attempt triggers a repair retry that succeeds. If both attempts fail, the API returns `LESSON_GENERATION_FAILED` and no quota is consumed. A problem that differs only in its numbers never returns a cached solution. A blurry image returns `IMAGE_UNREADABLE`.
 
 ---
 
 #### AGENT 4: Backend — Lesson, Subscription & TTS API
+**Code and `agent.md`:** `prepai/src/main/java/com/ascorp/prepai/agent4/` (read `agent.md` there first). Packages: `lesson`, `subscription`, `tts`.
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 2, Agent 3
 
@@ -1566,12 +1720,14 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 10. `POST /lessons/extract` controller (3.1.1): multipart upload, size and type checks (`IMAGE_TOO_LARGE`, `IMAGE_UNSUPPORTED`), delegating to Agent 3's extraction service; also handle type `IMAGE` on `/lessons/generate`
 11. Use Agent 2's shared error infrastructure (4.7): add domain exceptions only, no handlers of your own. Validate all endpoints with @Valid
 12. Write `usage_log` rows only for successful lessons
+13. Lesson orchestration in `LessonService` (the only place that ties the agents together): check the account with Agent 2's `AccountGateService`, reserve a session with Agent 2's `RateLimiterService`, call Agent 3's `LessonGenerationService`, store the lesson, commit the reservation on success or release it on any failure, write `usage_log`, and trigger TTS warm-up
 
 **Acceptance:** Full lesson lifecycle: generate → store → retrieve → rate → mastery check. Razorpay checkout creates subscription. TTS synthesize returns playable audio URL. Identical narration text is synthesized once and then served from cache. With VoiceStudio stopped, the API returns `TTS_UNAVAILABLE` and lessons still generate. The extract endpoint rejects a 6 MB file and a non-image file with the correct codes.
 
 ---
 
 #### AGENT 5: Frontend — Canvas/Whiteboard Engine (Konva.js + KaTeX)
+**Code and `agent.md`:** `frontend/src/app/features/lesson/whiteboard/` (`agent.md` in that folder).
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
 **This is the CORE differentiator — highest quality bar**
@@ -1594,6 +1750,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 6: Frontend — TTS & Voice Sync
+**Code and `agent.md`:** `frontend/src/app/features/lesson/lesson-player/` and `core/services/tts.service.ts` (`agent.md` in the lesson-player folder).
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 5
 
@@ -1614,6 +1771,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 7: Frontend — UI/UX
+**Code and `agent.md`:** `frontend/src/app/features/` (landing, auth, dashboard, lesson-input, mastery-check, pricing, profile) and `shared/` (`agent.md` in `features/`).
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 5, Agent 6
 
@@ -1638,6 +1796,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 8: Testing & Integration
+**Code and `agent.md`:** `prepai/src/test/java/com/ascorp/prepai/agent8/` and `frontend/e2e/` (read `agent8/agent.md` first). Each agent's own unit tests mirror its package under `src/test/java/com/ascorp/prepai/agentN/`.
 **Model:** Claude Sonnet 5.5
 **Depends on:** All agents
 
@@ -1667,6 +1826,7 @@ Alerts are delivered through the shared Grafana's alerting, as described above. 
 ---
 
 #### AGENT 9: DevOps Agent
+**Code and `agent.md`:** `scripts/`, `nginx/` and `ops/` (`agent.md` in `ops/`).
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
 
