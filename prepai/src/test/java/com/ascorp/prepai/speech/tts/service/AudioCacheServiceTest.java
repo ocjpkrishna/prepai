@@ -94,6 +94,17 @@ class AudioCacheServiceTest {
 	}
 
 	@Test
+	void aFailedMoveLeavesNoTemporaryFileBehind() throws Exception {
+		Path blocked = Files.createDirectories(dir.resolve(HASH + ".wav"));
+		Files.createFile(blocked.resolve("occupied"));
+
+		assertThatThrownBy(() -> cache.store(HASH, WavFixtures.wav(WavFixtures.DEFAULT_MILLIS)))
+				.isInstanceOf(ApiException.class);
+
+		assertThat(dir.resolve(HASH + ".wav.tmp")).doesNotExist();
+	}
+
+	@Test
 	void deletingAFileRemovesIt() throws Exception {
 		cache.store(HASH, WavFixtures.wav(WavFixtures.DEFAULT_MILLIS));
 

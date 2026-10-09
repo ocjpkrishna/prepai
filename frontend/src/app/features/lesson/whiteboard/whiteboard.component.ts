@@ -34,12 +34,16 @@ import { RenderWarning, WhiteboardTheme } from './whiteboard.types';
 export class WhiteboardComponent {
   readonly step = input<LessonStep | null>(null);
   readonly theme = input<WhiteboardTheme>('dark');
+  /** Timeline speed factor (1 is normal). */
+  readonly speed = input(1);
+  readonly paused = input(false);
   readonly stepComplete = output<number>();
   readonly renderWarning = output<RenderWarning>();
 
   private readonly stageHost = viewChild.required<ElementRef<HTMLDivElement>>('stage');
   private readonly latexHost = viewChild.required<ElementRef<HTMLDivElement>>('latex');
   private readonly renderer = inject(CanvasRendererService);
+  private readonly animation = inject(AnimationEngineService);
 
   protected readonly equations = computed(() => this.step()?.equations ?? []);
   protected readonly panelLeft = computed(() => EQUATION_PANEL_X * this.renderer.scale());
@@ -53,6 +57,10 @@ export class WhiteboardComponent {
     });
     effect(() => {
       void this.play(this.step(), this.theme());
+    });
+    effect(() => {
+      this.animation.setSpeed(this.speed());
+      this.animation.setPaused(this.paused());
     });
     this.renderer.warnings.pipe(takeUntilDestroyed()).subscribe((warning) => this.renderWarning.emit(warning));
     inject(DestroyRef).onDestroy(() => this.renderer.destroy());

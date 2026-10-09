@@ -38,8 +38,16 @@ public class TokenService {
 	@Transactional(noRollbackFor = ApiException.class)
 	public TokenResponse rotate(String rawRefreshToken) {
 		RefreshToken current = findUsable(rawRefreshToken);
-		current.revoke(clock.instant());
+		claim(current);
 		return issueInFamily(current.getUserId(), current.getFamilyId());
+	}
+
+	/** Two parallel refreshes with one token must not both win: the second is treated as reuse. */
+	private void claim(RefreshToken token) {
+		if (refreshTokens.revokeIfActive(token.getId(), clock.instant()) == 0) {
+			refreshTokens.revokeFamily(token.getFamilyId(), clock.instant());
+			throw sessionEnded();
+		}
 	}
 
 	private RefreshToken findUsable(String rawRefreshToken) {

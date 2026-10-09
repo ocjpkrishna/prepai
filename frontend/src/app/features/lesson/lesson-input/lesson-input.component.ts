@@ -8,7 +8,7 @@ import { Router } from '@angular/router';
 import { ApiError, ErrorCode } from '../../../core/errors/api-error';
 import { blockingErrorRoute } from '../../../core/errors/blocking-error-route';
 import { ERROR_COPY } from '../../../core/errors/error-copy';
-import { Difficulty, Exam, ExtractResult, LessonInputType, LessonRequest, Subject } from '../../../core/models/lesson.model';
+import { Difficulty, Exam, ExtractResult, LessonInputType, LessonRequest, Subject } from '../../../core/models/lesson-api.model';
 import { LessonService } from '../../../core/services/lesson.service';
 import { ApiErrorComponent } from '../../../shared/components/api-error/api-error.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';

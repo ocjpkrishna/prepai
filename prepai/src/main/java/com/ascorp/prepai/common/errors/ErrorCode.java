@@ -23,7 +23,8 @@ public enum ErrorCode {
 	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong. Please try again."),
 	LESSON_GENERATION_FAILED(HttpStatus.BAD_GATEWAY, "Couldn't build this lesson. No session was used."),
 	LLM_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Tutor is busy, try again shortly."),
-	TTS_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Audio is unavailable right now.");
+	TTS_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Audio is unavailable right now."),
+	EMAIL_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "We couldn't send the email. Please try again shortly.");
 
 	private final HttpStatus status;
 	private final String defaultMessage;

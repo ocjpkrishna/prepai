@@ -17,3 +17,6 @@ frontend/.angular/
 
 # Personal Claude Code overrides
 .claude/settings.local.json
+
+# Runtime data: generated narration audio and other local state
+prepai/data/

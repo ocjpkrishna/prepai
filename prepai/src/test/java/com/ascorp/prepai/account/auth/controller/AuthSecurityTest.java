@@ -116,6 +116,13 @@ class AuthSecurityTest {
 	}
 
 	@Test
+	void healthChecksAreNotBehindLogin() throws Exception {
+		mvc.perform(get("/actuator/health"))
+				.andExpect(result -> org.assertj.core.api.Assertions.assertThat(result.getResponse().getStatus())
+						.isNotEqualTo(401));
+	}
+
+	@Test
 	void validBearerTokenPassesTheSecurityLayer() throws Exception {
 		mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + signedToken()))
 				.andExpect(status().isNotFound())

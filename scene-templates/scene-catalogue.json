@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "about": "Source of truth for the physics scene templates. The backend reads it (validation, prompt, solver), the frontend reads it (drawing). A template is chosen by the model; its drawing and numbers are computed by code.",
+  "templates": [
+    {
+      "id": "projectile_horizontal",
+      "title": "Horizontal projection from a height (a ball thrown sideways off a tower or cliff)",
+      "params": [
+        { "name": "height", "unit": "m", "min": 1, "max": 1000, "required": true },
+        { "name": "speed", "unit": "m/s", "min": 0.1, "max": 300, "required": true },
+        { "name": "g", "unit": "m/s^2", "min": 1, "max": 30, "default": 10 }
+      ],
+      "derived": ["timeOfFlight", "range", "impactSpeed", "impactAngle"],
+      "elements": [
+        { "id": "ground", "about": "the ground line" },
+        { "id": "tower", "about": "the tower or cliff of the given height" },
+        { "id": "ball", "about": "the ball at the launch point" },
+        { "id": "axes", "about": "x horizontal, y vertical axes at the base of the tower" },
+        { "id": "launch-velocity", "about": "arrow for the horizontal launch speed" },
+        { "id": "path", "about": "the parabolic trajectory" },
+        { "id": "height-arrow", "about": "double arrow along the tower labelled h" },
+        { "id": "range-arrow", "about": "double arrow along the ground labelled R" },
+        { "id": "landing-point", "about": "where the ball lands" },
+        { "id": "impact-velocity", "about": "arrow for the velocity at landing, with its components" },
+        { "id": "time-label", "about": "the time of flight t shown beside the path" }
+      ]
+    },
+    {
+      "id": "projectile_angled",
+      "title": "Projectile launched at an angle (from the ground or from a height)",
+      "params": [
+        { "name": "speed", "unit": "m/s", "min": 0.1, "max": 300, "required": true },
+        { "name": "angle", "unit": "deg", "min": 5, "max": 85, "required": true },
+        { "name": "height0", "unit": "m", "min": 0, "max": 1000, "default": 0 },
+        { "name": "g", "unit": "m/s^2", "min": 1, "max": 30, "default": 10 }
+      ],
+      "derived": ["timeOfFlight", "range", "maxHeight", "timeToPeak"],
+      "elements": [
+        { "id": "ground", "about": "the ground line" },
+        { "id": "axes", "about": "x horizontal, y vertical axes at the launch point" },
+        { "id": "ball", "about": "the ball at the launch point" },
+        { "id": "launch-velocity", "about": "arrow for the launch velocity u" },
+        { "id": "angle-arc", "about": "arc and label for the launch angle" },
+        { "id": "vx-component", "about": "horizontal component u cos(theta)" },
+        { "id": "vy-component", "about": "vertical component u sin(theta)" },
+        { "id": "path", "about": "the parabolic trajectory" },
+        { "id": "peak-point", "about": "the highest point" },
+        { "id": "max-height-arrow", "about": "double arrow for the maximum height H" },
+        { "id": "range-arrow", "about": "double arrow for the range R" },
+        { "id": "landing-point", "about": "where the ball lands" }
+      ]
+    },
+    {
+      "id": "free_body",
+      "title": "Free-body diagram of one object with several forces",
+      "params": [
+        { "name": "object", "type": "string", "required": true, "about": "label of the object, e.g. block" },
+        { "name": "forces", "type": "array", "required": true, "min": 1, "max": 6,
+          "about": "list of { label, magnitude (N), angle (deg, 0 = right, 90 = up) }" }
+      ],
+      "derived": ["netForceX", "netForceY", "netForce", "netAngle"],
+      "elements": [
+        { "id": "body", "about": "the object drawn as a box or dot" },
+        { "id": "force-1", "about": "arrow of the first force; force-2 to force-6 follow the order of the list" },
+        { "id": "axes", "about": "x and y axes through the object" },
+        { "id": "net-force", "about": "the resultant force arrow" }
+      ]
+    },
+    {
+      "id": "inclined_plane",
+      "title": "Block on an inclined plane with weight, normal and friction",
+      "params": [
+        { "name": "angle", "unit": "deg", "min": 5, "max": 80, "required": true },
+        { "name": "mass", "unit": "kg", "min": 0.1, "max": 1000, "required": true },
+        { "name": "mu", "unit": "", "min": 0, "max": 2, "default": 0 },
+        { "name": "g", "unit": "m/s^2", "min": 1, "max": 30, "default": 10 }
+      ],
+      "derived": ["weight", "normal", "friction", "netAlongPlane", "acceleration"],
+      "elements": [
+        { "id": "incline", "about": "the sloping surface and the ground" },
+        { "id": "angle-arc", "about": "arc and label for the incline angle" },
+        { "id": "block", "about": "the block resting on the slope" },
+        { "id": "weight", "about": "mg arrow pointing straight down" },
+        { "id": "weight-parallel", "about": "component of the weight along the slope" },
+        { "id": "weight-perpendicular", "about": "component of the weight into the slope" },
+        { "id": "normal", "about": "normal reaction arrow" },
+        { "id": "friction", "about": "friction arrow along the slope (only when mu is above 0)" }
+      ]
+    },
+    {
+      "id": "motion_graph",
+      "title": "Velocity-time, position-time or acceleration-time graph built from straight segments",
+      "params": [
+        { "name": "kind", "type": "string", "required": true, "about": "one of v_t, x_t, a_t" },
+        { "name": "segments", "type": "array", "required": true, "min": 1, "max": 8,
+          "about": "list of { t0, t1, v0, v1 } in seconds and the graph's unit; segments follow each other" }
+      ],
+      "derived": ["displacement", "totalTime", "averageValue"],
+      "elements": [
+        { "id": "axes", "about": "labelled axes with ticks" },
+        { "id": "curve", "about": "the whole graph line" },
+        { "id": "segment-1", "about": "the first segment; segment-2 and so on follow the order of the list" },
+        { "id": "area", "about": "shaded area under the graph (displacement for v_t)" },
+        { "id": "slope-marker", "about": "a rise-over-run marker on the selected segment" }
+      ]
+    }
+  ]
+}

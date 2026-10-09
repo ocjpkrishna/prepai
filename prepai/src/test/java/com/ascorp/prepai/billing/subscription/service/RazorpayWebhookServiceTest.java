@@ -82,6 +82,20 @@ class RazorpayWebhookServiceTest {
 	}
 
 	@Test
+	void aLatePaymentEventDoesNotReviveACancelledSubscription() throws Exception {
+		subscription.cancel(NOW);
+		when(processed.existsById(EVENT_ID)).thenReturn(false);
+		when(subscriptions.findByRazorpaySubscriptionId("sub_1")).thenReturn(Optional.of(subscription));
+		String body = event("subscription.charged");
+
+		service.handle(body, WebhookSignatureVerifierTest.sign(body, SECRET), EVENT_ID);
+
+		assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.CANCELLED);
+		verifyNoInteractions(users);
+		verify(processed).save(org.mockito.ArgumentMatchers.any());
+	}
+
+	@Test
 	void aRepeatedEventIdChangesNothing() throws Exception {
 		when(processed.existsById(EVENT_ID)).thenReturn(true);
 		String body = event("subscription.charged");

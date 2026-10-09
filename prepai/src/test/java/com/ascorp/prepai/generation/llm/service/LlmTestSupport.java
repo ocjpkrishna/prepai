@@ -38,7 +38,8 @@ public final class LlmTestSupport {
 
 	public static PromptTemplateService prompts() {
 		return new PromptTemplateService(new ClassPathResource("prompts/system-prompt.txt"),
-				new ClassPathResource("prompts/user-prompt.txt"));
+				new ClassPathResource("prompts/lesson-format.txt"),
+				new ClassPathResource("prompts/lesson-example.json"), new ClassPathResource("prompts/user-prompt.txt"));
 	}
 
 	static LlmProperties properties(int maxAttempts) {

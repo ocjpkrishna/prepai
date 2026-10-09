@@ -22,6 +22,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/lesson/lesson-input/lesson-input.component').then(m => m.LessonInputComponent),
   },
   {
+    path: 'lessons/:lessonId',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/lesson/lesson-player/lesson-player.component').then(m => m.LessonPlayerComponent),
+  },
+  {
     path: 'pricing',
     loadComponent: () => import('./features/pricing/pricing.component').then(m => m.PricingComponent),
   },

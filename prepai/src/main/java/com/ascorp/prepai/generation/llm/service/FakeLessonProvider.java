@@ -24,7 +24,7 @@ public class FakeLessonProvider implements LlmProvider {
 	private final String cannedLesson;
 	private final String cannedExtraction;
 
-	public FakeLessonProvider(@Value("classpath:llm/fake-lesson.json") Resource lesson,
+	public FakeLessonProvider(@Value("classpath:prompts/lesson-example.json") Resource lesson,
 			@Value("classpath:llm/fake-extraction.json") Resource extraction) {
 		this.cannedLesson = read(lesson);
 		this.cannedExtraction = read(extraction);

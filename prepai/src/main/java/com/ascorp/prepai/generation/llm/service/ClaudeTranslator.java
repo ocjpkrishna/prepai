@@ -3,6 +3,8 @@ package com.ascorp.prepai.generation.llm.service;
 import com.ascorp.prepai.generation.llm.model.LlmCompletion;
 import com.ascorp.prepai.generation.llm.model.LlmImage;
 import com.ascorp.prepai.generation.llm.model.LlmPrompt;
+import com.ascorp.prepai.generation.llm.model.LlmProviderException;
+import com.ascorp.prepai.generation.llm.model.RetryReason;
 import java.util.List;
 import org.springframework.ai.anthropic.AnthropicCacheOptions;
 import org.springframework.ai.anthropic.AnthropicCacheStrategy;
@@ -47,12 +49,21 @@ final class ClaudeTranslator {
 	}
 
 	static LlmCompletion toCompletion(String provider, ChatResponse response) {
-		AssistantMessage message = response.getResult().getOutput();
+		AssistantMessage message = answerOf(response);
 		Usage usage = response.getMetadata().getUsage();
 		int inputTokens = usage.getPromptTokens();
 		int outputTokens = usage.getCompletionTokens();
 		return new LlmCompletion(provider, response.getMetadata().getModel(), message.getText(), inputTokens,
 				outputTokens, cost(inputTokens, outputTokens));
+	}
+
+	/** A reply without an answer (no generation, no text) is a provider failure, not a crash. */
+	private static AssistantMessage answerOf(ChatResponse response) {
+		if (response.getResult() == null || response.getResult().getOutput() == null) {
+			throw new LlmProviderException(RetryReason.PROVIDER_ERROR,
+					new IllegalStateException("The model returned no answer"));
+		}
+		return response.getResult().getOutput();
 	}
 
 	private static double cost(int inputTokens, int outputTokens) {

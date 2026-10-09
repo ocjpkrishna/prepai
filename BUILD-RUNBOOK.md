@@ -53,15 +53,18 @@ In an interactive session Claude cannot see the plan usage or change its own mod
 | 9b | generation/quality | nightly verifier and corrections job (calls Fable 5.1 in production only), `verified` promotion | Haiku | [x] |
 | 10 | generation/imageextract | image sanitising and extraction | Haiku | [x] |
 | 11 | Agent 5 | whiteboard engine (Konva, KaTeX, animation) | ★ Sonnet | [x] |
-| 12 | Agent 9 | DevOps: Prometheus, Grafana sync, nginx, systemd, deploy script | Haiku | [ ] |
-| 13 | lesson/orchestration | `LessonService`, generate and extract endpoints | ★ Sonnet | [ ] |
-| 14 | lesson/history + feedback + mastery | remaining lesson endpoints | Haiku | [ ] |
-| 15 | billing | plans, checkout, Razorpay webhook (signature, idempotency) | ★ Sonnet | [ ] |
-| 16 | speech | TTS endpoints, audio cache, warm-up, cleanup | Haiku | [ ] |
-| 17 | Agent 6 | TTS and voice sync, lesson player | ★ Sonnet | [ ] |
-| 18 | Agent 7 | UI pages: landing, auth, dashboard, lesson input, pricing, profile | Haiku | [ ] |
+| 12 | Agent 9 | DevOps: Prometheus, Grafana sync, nginx, systemd, deploy script | Haiku | [x] |
+| 13 | lesson/orchestration | `LessonService`, generate and extract endpoints | ★ Sonnet | [x] |
+| 14 | lesson/history + feedback + mastery | remaining lesson endpoints | Haiku | [x] |
+| 15 | billing | plans, checkout, Razorpay webhook (signature, idempotency) | ★ Sonnet | [x] |
+| 16 | speech | TTS endpoints, audio cache, warm-up, cleanup | Haiku | [x] |
+| 17 | Agent 6 | TTS and voice sync, lesson player | ★ Sonnet | [x] |
+| 18 | Agent 7 | UI pages: landing, auth, dashboard, lesson input, pricing, profile | Haiku | [x] |
 | 19 | Agent 8 | integration, adversarial and performance tests, E2E | Haiku | [ ] |
 | 20 | Review | Sonnet `/code-review` of the ★ modules, then fixes | Sonnet, if plan usage allows | [ ] |
+| 21 | scene backend | lesson `scene`, `reveal`, `emphasise`, `terms`; validator, physics solver, prompt (DIAGRAM-CONTRACT.md piece A) | ★ Sonnet | [ ] |
+| 22 | scene engine | persistent scene, hand-drawn renderer, sentence-synced playback, term pointing (piece B) | ★ Sonnet | [ ] |
+| 23 | scene templates | five physics template builders (piece C) | ★ Sonnet | [ ] |
 
 Flyway migrations belong to the row that owns the table (spec 5.2).
 
@@ -113,3 +116,5 @@ One line per checkpoint: date, row, what is done, what is next, any problem.
 - 2026-10-09, row 9b done (unattended, Haiku 5.5): `generation/quality` (`VerificationService` batch, `CorrectionService` with V6 `quality_corrections`, `NightlyVerifierJob` at 02:30, `QualityMetrics` backlog gauge), `ClaudeVerifierClient` (Fable 5.1, `prod` only, via shared `ClaudeFailures`), `ProblemReviewService` in `rag`, V6 migration. `./gradlew check` green, db tests included. Open: no live Fable call (no key); the verifier does not evict `lesson:cache` keys (see "Needs the user"); the `prepai_test` history needs out-of-order for V6; no `/code-review` (row 20). Next: row 10 (generation/imageextract, Haiku).
 - 2026-10-09, row 10 done (unattended, Haiku 5.5): `generation/imageextract` (`ImageExtractionService`, `ImageSanitizer` with JPEG, PNG and WebP metadata strippers, `ExtractionReplyParser`, `ExtractionPrompt`, `ImageProperties`), and `LlmPrompt` now carries an optional photo (`LlmImage`, `LlmPurpose` derived from it) through `ClaudeTranslator`, `LlmCaller` and `LlmMetrics`. `./gradlew check` green. Open: no live vision call (no key); the Claude media request is only unit-tested with a mocked `ChatModel`; no `/code-review` (row 20); `/simplify` done inline. Next: row 11 (Agent 5 whiteboard engine, ★ Sonnet tier, frontend).
 - 2026-10-09, row 11 done (unattended, Haiku 5.5, not the ★ Sonnet tier): `frontend/src/app/features/lesson/whiteboard` (`CanvasRendererService` plays a step as fade then each of the 18 action types of spec 3.3; `AnimationEngineService` with easing and cancel; `EquationRendererService` with KaTeX, trust off and a raw-source fallback; `WhiteboardComponent` and its equation child; `core/models` for lesson and canvas types; safe config reader, graph-expression parser, warnings for bad data), KaTeX CSS in `angular.json`. `ng test` 45 pass, `ng build` green. Open: no frontend lint (not configured, BUILD-DECISIONS "Needs the user"); no browser check; Konva is mocked in the specs; no `/code-review` (row 20). Next: row 12 (Haiku, DevOps).
+- 2026-10-09, rows 12 to 18 done (cloud sessions, merged locally): ops (row 12), lesson orchestration with history, feedback and mastery check (13, 14), billing (15), speech (16), lesson player (17), UI pages (18). Integration fixes: the lesson controller is split into five controllers (fan-out gate), the frontend app build excludes `testing/` helpers. Review fixes from row 20 (account refresh rotation, password bytes, billing late event, speech temp file) are in. Open: 19a backend tests, 20b generation review. Full backend check and 127 frontend tests green.
+- 2026-10-09, smoke test on this VPS (app on 8085 with the fake lesson provider, a local mail catcher, then stopped): sign up, email verification, login, generate (3 free sessions, the 4th answers 429 DAILY_LIMIT_REACHED), history, get, feedback, mastery check, usage, 401 on a bad token, 404 when another student asks for the lesson all work. Found and fixed: `/actuator/health` answered 401 (now public on the management port) and a mail outage answered 500 (now 503 EMAIL_UNAVAILABLE). Not testable here: `/api/v1/tts/*` answers 503 TTS_UNAVAILABLE because VoiceStudio is not installed (see Needs the user).

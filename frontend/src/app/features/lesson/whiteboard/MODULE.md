@@ -50,5 +50,5 @@ None. Feature state lives in the component and its services.
 - [x] components and services (renderer, animation engine, equation renderer, scene, drawers for all 18 action types of spec 3.3)
 - [x] defensive rendering: unknown types, missing or invalid fields, NaN, out-of-canvas points, bad LaTeX and bad graph functions are skipped or fall back, each with a warning
 - [x] unit tests mirrored under `frontend/src/app/` (spec 3.2 sample plays to the end; malformed step plays to the end)
-- [ ] no route: the lesson player (row 17) hosts this component
+- [x] hosted by the lesson player (row 17): `speed` and `paused` inputs scale and freeze the animation clock
 - [ ] visual check in a browser: not done in the build (no dev server left running)

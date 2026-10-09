@@ -11,8 +11,8 @@ import org.springframework.core.io.ClassPathResource;
 
 class FakeLessonProviderTest {
 
-	private final FakeLessonProvider provider = new FakeLessonProvider(new ClassPathResource("llm/fake-lesson.json"),
-			new ClassPathResource("llm/fake-extraction.json"));
+	private final FakeLessonProvider provider = new FakeLessonProvider(
+			new ClassPathResource("prompts/lesson-example.json"), new ClassPathResource("llm/fake-extraction.json"));
 
 	@Test
 	void returnsACannedExtractionForAPhoto() {

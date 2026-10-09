@@ -1,0 +1,66 @@
+<section class="player">
+  @if (loading()) {
+    <app-loading-spinner label="Opening your lesson..." />
+  } @else if (error()) {
+    <app-api-error [error]="error()" (retry)="load()" />
+  } @else if (playback.lesson(); as lesson) {
+    <h1>{{ lesson.title }}</h1>
+    <app-whiteboard
+      [step]="playback.currentStep()"
+      [speed]="playback.speed()"
+      [paused]="playback.paused()"
+      (stepComplete)="playback.onCanvasComplete()" />
+
+    @if (playback.phase() === 'ready') {
+      <div class="start">
+        <button mat-flat-button type="button" (click)="playback.start()">Start lesson</button>
+      </div>
+    } @else {
+      <p class="step-title">
+        @if (playback.phase() === 'steps') {
+          Step {{ playback.stepIndex() + 1 }} of {{ lesson.steps.length }}: {{ lesson.steps[playback.stepIndex()].title }}
+        } @else {
+          Summary
+        }
+      </p>
+      <p class="caption" aria-live="polite" data-testid="caption">
+        @for (word of playback.words(); track $index) {
+          <span class="word" [class.spoken]="$index < playback.activeWord()" [class.active]="$index === playback.activeWord()">{{ word }} </span>
+        }
+      </p>
+    }
+
+    @if (playback.phase() === 'steps' || playback.phase() === 'summary') {
+      <div class="controls">
+        <button mat-stroked-button type="button" (click)="togglePause()">
+          {{ playback.paused() ? 'Resume' : 'Pause' }}
+        </button>
+        <mat-button-toggle-group
+          aria-label="Playback speed"
+          [value]="playback.speed()"
+          (change)="playback.setSpeed($event.value)">
+          @for (speed of speeds; track speed) {
+            <mat-button-toggle [value]="speed">{{ speed }}x</mat-button-toggle>
+          }
+        </mat-button-toggle-group>
+        @if (!tts.available()) {
+          <button mat-button type="button" (click)="playback.retryVoice()">Retry voice</button>
+        }
+      </div>
+    }
+
+    @if (playback.phase() === 'summary' || playback.phase() === 'done') {
+      <ul class="key-results">
+        @for (result of lesson.summary.keyResults; track result.label) {
+          <li><strong>{{ result.label }}:</strong> {{ result.value }}</li>
+        }
+      </ul>
+    }
+    @if (playback.phase() === 'done') {
+      <div class="controls">
+        <button mat-stroked-button type="button" (click)="playback.start()">Replay lesson</button>
+        <a mat-button routerLink="/dashboard">Back to dashboard</a>
+      </div>
+    }
+  }
+</section>

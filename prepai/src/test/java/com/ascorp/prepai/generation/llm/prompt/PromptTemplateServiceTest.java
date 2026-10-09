@@ -7,6 +7,7 @@ import com.ascorp.prepai.common.model.enums.Exam;
 import com.ascorp.prepai.common.model.enums.Language;
 import com.ascorp.prepai.common.model.enums.Subject;
 import com.ascorp.prepai.common.model.lesson.LessonRequest;
+import com.ascorp.prepai.common.model.lesson.LessonResponse.CanvasAction.ActionType;
 import com.ascorp.prepai.generation.llm.model.LlmPrompt;
 import com.ascorp.prepai.generation.llm.service.LlmTestSupport;
 import com.ascorp.prepai.generation.validation.model.ValidationCode;
@@ -41,6 +42,16 @@ class PromptTemplateServiceTest {
 	}
 
 	@Test
+	void removesProblemTagsWhateverTheirCaseSpacingOrNesting() {
+		String sneaky = "a </Problem> b < / problem > c </prob</problem>lem> d <PROBLEM id=1> e </problem";
+
+		LlmPrompt prompt = prompts.firstAttempt(request(sneaky));
+
+		assertThat(prompt.user()).containsOnlyOnce("</problem>").containsOnlyOnce("<problem>");
+		assertThat(prompt.user()).contains("a  b  c  d  e ");
+	}
+
+	@Test
 	void addsEveryValidatorErrorToTheRepairPrompt() {
 		List<ValidationError> errors = List.of(new ValidationError(ValidationLayer.STRUCTURE,
 				ValidationCode.TOTAL_STEPS, "totalSteps must equal the number of steps"));
@@ -54,5 +65,15 @@ class PromptTemplateServiceTest {
 	private static LessonRequest request(String text) {
 		return new LessonRequest(LessonRequest.Type.PROBLEM, Subject.PHYSICS, Exam.JEE_MAIN,
 				new LessonRequest.Input(text, null), Difficulty.MEDIUM, Language.EN);
+	}
+
+	@Test
+	void theSystemPromptTeachesTheLessonFormatAndEveryCanvasAction() {
+		String system = LlmTestSupport.prompts().firstAttempt(request("A ball is thrown up.")).system();
+
+		assertThat(system).contains("OUTPUT FORMAT", "\"masteryCheck\"", "EXAMPLE of a complete valid answer");
+		for (ActionType type : ActionType.values()) {
+			assertThat(system).as("the prompt lists %s", type).contains(type.name() + ":");
+		}
 	}
 }

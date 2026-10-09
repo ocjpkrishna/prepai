@@ -44,6 +44,9 @@ management:
     health:
       probes:
         enabled: true
+  health:
+    mail:
+      enabled: false # a mail outage must not mark the app down; sign-up answers 503 on its own
   metrics:
     tags:
       application: prepai
@@ -66,6 +69,11 @@ prepai:
     provider: ${LLM_PROVIDER:claude} # claude in production; fake in local and test (decision 7)
     max-attempts: ${LLM_MAX_ATTEMPTS:2}
     retry-backoff: ${LLM_RETRY_BACKOFF:1s}
+    claude-code: # the claude-code provider: Claude Code on this machine, no API key
+      executable: ${CLAUDE_CODE_BIN:claude}
+      model: ${CLAUDE_CODE_MODEL:sonnet}
+      timeout: ${CLAUDE_CODE_TIMEOUT:180s}
+      max-concurrent: ${CLAUDE_CODE_MAX_CONCURRENT:2}
     local:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434} # dev/testing provider only
   image:

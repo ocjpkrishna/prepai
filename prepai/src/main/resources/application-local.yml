@@ -64,3 +64,6 @@ prepai:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}
     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+  dev-test-user:
+    email: ${DEV_TEST_EMAIL:test@prepai.local}
+    password: ${DEV_TEST_PASSWORD:}

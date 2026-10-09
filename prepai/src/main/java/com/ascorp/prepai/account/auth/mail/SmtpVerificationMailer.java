@@ -1,12 +1,17 @@
 package com.ascorp.prepai.account.auth.mail;
 
 import com.ascorp.prepai.common.config.AppProperties;
+import com.ascorp.prepai.common.errors.ApiException;
+import com.ascorp.prepai.common.errors.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
 
 /** Sends the verification link through the SMTP server configured with spring.mail.* (spec 2.7). */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class SmtpVerificationMailer implements VerificationMailer {
@@ -36,6 +41,11 @@ public class SmtpVerificationMailer implements VerificationMailer {
 		message.setTo(recipient);
 		message.setSubject(subject);
 		message.setText(text);
-		sender.send(message);
+		try {
+			sender.send(message);
+		} catch (MailException failure) {
+			log.error("Could not send mail to the mail server", failure);
+			throw new ApiException(ErrorCode.EMAIL_UNAVAILABLE);
+		}
 	}
 }
