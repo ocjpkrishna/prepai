@@ -2,6 +2,7 @@ package com.ascorp.prepai.billing.subscription.service;
 
 import com.ascorp.prepai.account.user.service.UserService;
 import com.ascorp.prepai.billing.subscription.model.entity.Subscription;
+import com.ascorp.prepai.billing.subscription.model.entity.SubscriptionStatus;
 import com.ascorp.prepai.billing.subscription.repository.SubscriptionRepository;
 import com.ascorp.prepai.common.model.enums.Plan;
 import java.time.Clock;
@@ -26,7 +27,10 @@ public class SubscriptionLifecycleService {
 	private final UserService users;
 	private final Clock clock;
 
-	/** Events for other kinds of payment, or for a subscription we never created, are ignored. */
+	/**
+	 * Events for other kinds of payment, or for a subscription we never created, are ignored. So is a payment event
+	 * that arrives after the cancellation: a cancelled subscription never comes back.
+	 */
 	public void apply(String eventType, JsonNode event) {
 		JsonNode entity = event.path("payload").path("subscription").path("entity");
 		subscriptions.findByRazorpaySubscriptionId(entity.path("id").asString(""))
@@ -34,7 +38,7 @@ public class SubscriptionLifecycleService {
 	}
 
 	private void applyTo(Subscription subscription, String eventType, JsonNode entity) {
-		if (PAID_EVENTS.contains(eventType)) {
+		if (PAID_EVENTS.contains(eventType) && subscription.getStatus() != SubscriptionStatus.CANCELLED) {
 			start(subscription, entity);
 		} else if (ENDED_EVENTS.contains(eventType)) {
 			end(subscription);
