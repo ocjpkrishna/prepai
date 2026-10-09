@@ -1,0 +1,33 @@
+.options {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr;
+}
+
+.lesson-form,
+.reading {
+  display: grid;
+  gap: 12px;
+}
+
+.photo-button {
+  position: relative;
+  cursor: pointer;
+}
+
+.reading-text {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+@media (min-width: 640px) {
+  .options {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
