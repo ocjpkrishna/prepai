@@ -45,7 +45,8 @@ The entity refers to the user by `UUID userId`, never by `account`'s `User`.
 Full lifecycle works: generate, store, retrieve, rate, mastery check. The extract endpoint rejects a 6 MB file and a non-image with the right error codes. A failed generation does not change the student's session count.
 
 ## Status
-- [ ] generate with orchestration; get; history; feedback; mastery check
+- [ ] generate with orchestration (row 13)
+- [x] get; history (newest first, subject filter, page size capped at 50); feedback (1 to 5 stars, comment up to 2000 characters); mastery check (row 14)
 - [ ] image extract endpoint and the `IMAGE` input type
 - [ ] Flyway migration V2
 - [ ] Tests mirrored under `src/test/java/.../lesson/`
