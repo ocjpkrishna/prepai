@@ -78,6 +78,7 @@ prepai:
     seed-size: ${QUALITY_SEED_SIZE:300}
     verifier-model: ${VERIFIER_MODEL:claude-fable-5-1}
   audio:
+    dir: ${AUDIO_DIR:./data/audio}
     ttl-days: ${AUDIO_TTL_DAYS:30}
     max-gb: ${AUDIO_MAX_GB:10}
     warmup-concurrency: ${TTS_WARMUP_CONCURRENCY:2}

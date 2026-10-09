@@ -101,6 +101,17 @@ Unattended sessions cannot ask questions, so every choice that would normally be
 - 2026-10-09, row 10: metadata stripping keeps JPEG APP0 (JFIF), APP2 (colour profile) and APP14 (colour flags) and drops other APPn segments and comments; PNG drops eXIf and text chunks and drops anything after IEND; WebP drops EXIF and XMP chunks and rewrites the RIFF size. Spec 2.7 requires EXIF and GPS removal only, so nothing else is changed.
 - 2026-10-09, row 10: the spec gives no extraction prompt, so `prompts/image-extract-system-prompt.txt` is ours (JSON only; text in the photo is data). The fake provider answers photo prompts with `llm/fake-extraction.json` (decision 7).
 - 2026-10-09, row 10: the 1600 px downscale is the frontend's job (spec 3.1.1); the server does not resize. The extract rate limit (`ratelimit:extract`) is applied by `lesson` in row 13, not here.
+- 2026-10-09, row 16: built on the session model (Haiku 5.5), as the table names. Cloud session on `row-16`; Maven returned 429 for a while, so the gates ran after retries.
+- 2026-10-09, row 16: VoiceStudio's HTTP contract is assumed, because its source is not in the repo: `POST /synthesize` with `{text, language, voice}` answers WAV bytes, `GET /voices` answers `[{id, name, language}]`. Behind `VoiceStudioClient`; tests use `FakeVoiceStudioClient` and a local `HttpServer`.
+- 2026-10-09, row 16: the duration comes from the WAV header (`WavFormat`), so VoiceStudio need not report it. A reply that is not WAV is `TTS_UNAVAILABLE`.
+- 2026-10-09, row 16: timeouts are a 3 s connect and a 30 s read (spec 4.5 names none). Any failure, including a disk error, is `TTS_UNAVAILABLE`, which never uses quota.
+- 2026-10-09, row 16: the language is `en-IN` or `hi-IN` (the spec 4.5 example); the voice is `prepai.voicestudio.default-voice`, because the request has no voice field.
+- 2026-10-09, row 16: the audio file name is the SHA-256 of text, language and voice joined by a line feed. The spec gives no separator; the feed keeps the fields apart.
+- 2026-10-09, row 16: a file's modification time is its last use (a hit touches it), so the cleanup needs no table. Writes go to `*.wav.tmp` and move into place.
+- 2026-10-09, row 16: the nightly cleanup runs at 03:00, after the purge (02:15) and the verifier (02:30).
+- 2026-10-09, row 16: warm-up is `@Async` with a semaphore of `TTS_WARMUP_CONCURRENCY`; the Boot virtual-thread executor runs it. `lesson` calls it in row 13.
+- 2026-10-09, row 16: the per-user TTS rate limit (spec 4.5 "Limits") is not built: it needs the `quota` module and is not in row 16's scope. Left open in `speech/MODULE.md`.
+- 2026-10-09, row 16: `application.yaml` gets `prepai.audio.dir` (`AUDIO_DIR`, default `./data/audio`); `local` and `prod` already set it.
 
 ## Needs the user
 Collected here so nobody has to be interrupted. Review after the build.
@@ -119,6 +130,7 @@ Collected here so nobody has to be interrupted. Review after the build.
 | Cache seed run | After the verifier exists (TODO-8) |
 | Angular version check | Confirm the version `ng new` picked suits the team |
 | VoiceStudio source and install | `install.sh` only reports it; the TTS server's source is not in this repository (spec 10.1) |
+| VoiceStudio API contract | Row 16 assumes `POST /synthesize` (JSON in, WAV out) and `GET /voices` (see decisions, row 16). Check both against the real server before launch; a live call is not possible here |
 | CI secrets and deploy switch | `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS` secrets and the `DEPLOY_ENABLED` variable, set after row 12 |
 | Production secrets file | `install.sh` generates `DB_PASSWORD` and `JWT_SECRET` in `/etc/prepai/prepai.env`; the operator fills the rest (Google, Claude, Razorpay, SMTP) |
 | PostgreSQL check of the auth schema | V1, V7 and V8 and the `ddl-auto: validate` mapping have only been checked by reading. Run them on the VPS against `prepai_test` with a `db`-tagged test before row 4 relies on them |
