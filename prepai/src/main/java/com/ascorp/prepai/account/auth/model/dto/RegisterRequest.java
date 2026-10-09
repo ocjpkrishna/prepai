@@ -10,8 +10,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 
 /**
- * Sign-up. BCrypt reads at most 72 bytes of a password and refuses longer ones, so the limit counts bytes. The birth date is used only for the age flag and is
- * never stored; a guardian email is required for under-18s (spec 2.7).
+ * Sign-up. BCrypt reads at most 72 bytes of a password and refuses longer ones, so the limit counts bytes. The
+ * birth date is used only for the age flag and is never stored; a guardian email is required for under-18s
+ * (spec 2.7).
  */
 public record RegisterRequest(
 		@NotBlank @Email @Size(max = 255) String email,
