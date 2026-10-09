@@ -1,0 +1,47 @@
+<section class="page">
+  <h1>Profile and settings</h1>
+
+  @if (user(); as current) {
+    <section class="card stack" aria-label="Account">
+      <p><strong>{{ current.name }}</strong><br><span class="muted">{{ current.email }}</span></p>
+      <p class="muted">Plan: {{ current.plan }}</p>
+      <mat-form-field>
+        <mat-label>Language</mat-label>
+        <mat-select [formControl]="language">
+          <mat-option value="en">English</mat-option>
+          <mat-option value="hi">हिन्दी</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <div class="row">
+        <button matButton="filled" type="button" (click)="saveLanguage()">Save</button>
+      </div>
+      @if (message(); as text) {
+        <p role="status">{{ text }}</p>
+      }
+    </section>
+
+    <section class="card stack" aria-label="Your data">
+      <h2>Your data</h2>
+      <p class="muted">Download a copy of your profile, lessons, feedback and usage.</p>
+      <div class="row">
+        <button matButton type="button" (click)="downloadData()">Download my data</button>
+      </div>
+    </section>
+
+    <section class="card stack danger" aria-label="Delete account">
+      <h2>Delete my account</h2>
+      <p class="muted">Your account is deactivated straight away and your personal data is erased within 30 days.
+        Type {{ deleteWord }} to confirm.</p>
+      <mat-form-field>
+        <mat-label>Type {{ deleteWord }}</mat-label>
+        <input matInput [formControl]="deleteConfirmation" autocomplete="off">
+      </mat-form-field>
+      <div class="row">
+        <button matButton="filled" type="button" [disabled]="deleteConfirmation.value !== deleteWord"
+          (click)="deleteAccount()">Delete my account</button>
+      </div>
+    </section>
+  }
+
+  <app-api-error [error]="error()" />
+</section>

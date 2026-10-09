@@ -1,0 +1,55 @@
+.hero {
+  display: grid;
+  gap: 16px;
+  padding: 48px 16px 24px;
+  max-width: 960px;
+  margin: 0 auto;
+  box-sizing: border-box;
+
+  h1 {
+    font-size: 2rem;
+    margin: 0;
+  }
+}
+
+.lead {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.features {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.card {
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+
+  h2 {
+    font-size: 1.125rem;
+    margin: 0 0 8px;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.video {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+}
+
+@media (min-width: 640px) {
+  .hero h1 {
+    font-size: 2.5rem;
+  }
+}

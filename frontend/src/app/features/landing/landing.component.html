@@ -1,0 +1,29 @@
+<section class="hero">
+  <h1>Understand it on the whiteboard</h1>
+  <p class="lead">PrepAI explains your Physics, Chemistry and Maths problems step by step, with a voice and a board that draws as it talks.</p>
+  <div class="row">
+    <a matButton="filled" routerLink="/register">Start free</a>
+    <a matButton routerLink="/pricing">See plans</a>
+  </div>
+</section>
+
+<section class="page">
+  <div class="features">
+    @for (feature of features; track feature.title) {
+      <article class="card">
+        <h2>{{ feature.title }}</h2>
+        <p class="muted">{{ feature.text }}</p>
+      </article>
+    }
+  </div>
+
+  <section class="video" aria-label="Demo video">
+    <p>Demo video coming soon.</p>
+  </section>
+
+  <section class="stack" aria-label="Plans">
+    <h2>Plans</h2>
+    <app-api-error [error]="error()" />
+    <app-plan-cards [plans]="plans()" (choose)="choosePlan()" />
+  </section>
+</section>

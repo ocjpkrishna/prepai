@@ -1,0 +1,17 @@
+.notice {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: var(--surface-raised);
+}
+
+.fine-print {
+  font-size: 0.875rem;
+}
+
+.skeleton {
+  height: 120px;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
