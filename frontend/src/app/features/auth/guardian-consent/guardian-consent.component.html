@@ -1,0 +1,11 @@
+<section class="page">
+  <h1>Guardian consent</h1>
+  @if (confirmed()) {
+    <p>Thank you. Your ward can now start lessons on PrepAI.</p>
+  } @else {
+    <p>You are confirming that you consent to your child using PrepAI and that their question text is stored under our Privacy Policy.</p>
+    <app-api-error [error]="error()" (retry)="confirm()" />
+    <button matButton="filled" type="button" [disabled]="!token()" (click)="confirm()">I consent</button>
+  }
+  <a matButton routerLink="/privacy">Read the Privacy Policy</a>
+</section>
