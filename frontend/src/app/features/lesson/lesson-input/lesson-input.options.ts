@@ -1,4 +1,4 @@
-import { Difficulty, Exam } from '../../../core/models/lesson.model';
+import { Difficulty, Exam } from '../../../core/models/lesson-api.model';
 
 export const MAX_TEXT_LENGTH = 2000;
 

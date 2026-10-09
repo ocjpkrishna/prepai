@@ -1,5 +1,5 @@
 import { Component, computed, input } from '@angular/core';
-import { Subject } from '../../../core/models/lesson.model';
+import { Subject } from '../../../core/models/lesson-api.model';
 
 const SUBJECT_LABELS: Record<Subject, { icon: string; label: string }> = {
   PHYSICS: { icon: '🧲', label: 'Physics' },

@@ -4,7 +4,7 @@ import { MatButton } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ApiError } from '../../core/errors/api-error';
-import { LessonHistoryPage, LessonSummary } from '../../core/models/lesson.model';
+import { LessonHistoryPage, LessonSummary } from '../../core/models/lesson-api.model';
 import { Usage, User } from '../../core/models/user.model';
 import { LessonService } from '../../core/services/lesson.service';
 import { UserService } from '../../core/services/user.service';

@@ -1,4 +1,4 @@
-import { Subject } from '../core/models/lesson.model';
+import { Subject } from '../core/models/lesson-api.model';
 
 export const SUBJECT_OPTIONS: { value: Subject; label: string }[] = [
   { value: 'PHYSICS', label: 'Physics' },
