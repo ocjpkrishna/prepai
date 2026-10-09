@@ -11,7 +11,16 @@
 ```
 shared/
 ├── MODULE.md
-└── (components, services and routes are added by the owning agent)
+├── subjects.ts                      subject options shared by the dashboard and lesson input
+└── components/
+    ├── navbar/                      top bar; login/logout state follows navigation
+    ├── footer/                      links to Privacy and Terms
+    ├── loading-spinner/             spinner with a line of text ("PrepAI is thinking...")
+    ├── subject-icon/                subject emoji and label
+    ├── plan-cards/                  plan cards for the landing and pricing pages
+    ├── api-error/                   one API error: friendly copy, Retry, upgrade link, countdown
+    ├── error-boundary/              global "Reference: {traceId}" panel with copy button
+    └── not-found/                   the NOT_FOUND page
 ```
 
 ## Other modules may call
@@ -25,5 +34,5 @@ None. Feature state lives in components and `core/services`.
 - Follow spec 9.1.2 where it applies to the frontend: short methods, no magic numbers, no `TODO` comments.
 
 ## Status
-- [ ] components and routes
-- [ ] unit tests mirrored under `frontend/src/app/`
+- [x] components and routes
+- [x] unit tests mirrored under `frontend/src/app/`

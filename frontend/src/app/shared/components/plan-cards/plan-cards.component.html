@@ -1,0 +1,15 @@
+<div class="cards">
+  @for (plan of plans(); track plan.id) {
+    <article class="card">
+      <h3>{{ plan.name }}</h3>
+      <p class="price">{{ plan.priceInr === 0 ? 'Free' : '₹' + plan.priceInr + ' / month' }}</p>
+      <ul>
+        <li>{{ sessionsLabel(plan) }}</li>
+        <li>{{ plan.sessionMinutes }} minutes per session</li>
+      </ul>
+      <button matButton="filled" (click)="choose.emit(plan)">
+        {{ plan.priceInr === 0 ? 'Start free' : 'Choose ' + plan.name }}
+      </button>
+    </article>
+  }
+</div>
