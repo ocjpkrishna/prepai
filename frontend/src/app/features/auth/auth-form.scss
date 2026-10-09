@@ -1,0 +1,10 @@
+.auth-form {
+  display: grid;
+  gap: 12px;
+  max-width: 480px;
+}
+
+.form-error {
+  margin: 0;
+  color: var(--danger);
+}

@@ -1,0 +1,77 @@
+<section class="page">
+  <h1>Ask PrepAI</h1>
+  <p class="muted">Type your question or photograph the problem. PrepAI explains it on a whiteboard.</p>
+
+  @if (status() === 'generating') {
+    <app-loading-spinner label="PrepAI is thinking..." />
+  } @else {
+    <form class="lesson-form" [formGroup]="form" (ngSubmit)="submitText()">
+      <div class="options">
+        <mat-form-field>
+          <mat-label>Subject</mat-label>
+          <mat-select formControlName="subject">
+            @for (option of subjects; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Exam</mat-label>
+          <mat-select formControlName="exam">
+            @for (option of exams; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Difficulty</mat-label>
+          <mat-select formControlName="difficulty">
+            @for (option of difficulties; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <mat-form-field>
+        <mat-label>Your question or problem</mat-label>
+        <textarea matInput formControlName="text" rows="5" [maxlength]="maxTextLength"></textarea>
+        @if (form.controls.text.hasError('required') && form.controls.text.touched) {
+          <mat-error>Type the question you want explained</mat-error>
+        } @else if (form.controls.text.errors?.['server']; as message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+
+      <div class="row">
+        <button matButton="filled" type="submit" [disabled]="status() === 'reading'">Explain this</button>
+        <label class="photo-button" matButton>
+          Take or upload a photo
+          <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden
+            (change)="onPhotoSelected($event)">
+        </label>
+      </div>
+    </form>
+
+    @if (status() === 'reading') {
+      <app-loading-spinner label="Reading your photo..." />
+    }
+
+    @if (status() === 'reviewing') {
+      <section class="reading stack" aria-label="Photo reading">
+        <h2>We read this as…</h2>
+        <p class="muted">Check the text and fix anything wrong before we explain it.</p>
+        <textarea matInput class="reading-text" rows="5" [formControl]="readText" aria-label="Extracted problem"></textarea>
+        <div class="row">
+          <button matButton="filled" type="button" (click)="confirmReading()">Confirm and explain</button>
+          <button matButton type="button" (click)="retakePhoto()">Retake photo</button>
+        </div>
+      </section>
+    }
+
+    <app-api-error [error]="error()" (retry)="retry()" />
+    @if (error()?.code === 'IMAGE_UNREADABLE') {
+      <button matButton type="button" (click)="retakePhoto()">Retake photo</button>
+    }
+  }
+</section>

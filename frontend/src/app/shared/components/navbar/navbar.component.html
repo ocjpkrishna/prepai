@@ -1,0 +1,14 @@
+<nav class="navbar" aria-label="Main">
+  <a class="brand" routerLink="/">PrepAI</a>
+  <div class="links">
+    <a matButton routerLink="/pricing">Pricing</a>
+    @if (loggedIn()) {
+      <a matButton routerLink="/dashboard">Dashboard</a>
+      <a matButton routerLink="/profile">Profile</a>
+      <button matButton (click)="logout()">Log out</button>
+    } @else {
+      <a matButton routerLink="/login">Log in</a>
+      <a matButton="filled" routerLink="/register">Sign up free</a>
+    }
+  </div>
+</nav>

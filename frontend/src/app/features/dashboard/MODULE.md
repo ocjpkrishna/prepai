@@ -11,7 +11,7 @@
 ```
 features/dashboard/
 ├── MODULE.md
-└── (components, services and routes are added by the owning agent)
+├── dashboard.component.ts|html|scss  usage, quick-start subject picker, lesson history, skeletons
 ```
 
 ## Other modules may call
@@ -25,5 +25,5 @@ None. Feature state lives in components and `core/services`.
 - Follow spec 9.1.2 where it applies to the frontend: short methods, no magic numbers, no `TODO` comments.
 
 ## Status
-- [ ] components and routes
-- [ ] unit tests mirrored under `frontend/src/app/`
+- [x] components and routes
+- [x] unit tests mirrored under `frontend/src/app/`

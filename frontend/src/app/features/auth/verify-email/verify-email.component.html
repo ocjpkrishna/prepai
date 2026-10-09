@@ -1,0 +1,17 @@
+<section class="page">
+  @if (token()) {
+    <h1>Verify your email</h1>
+    @if (verified()) {
+      <p>Your email is verified. You can start lessons now.</p>
+      <a matButton="filled" routerLink="/dashboard">Go to my dashboard</a>
+    } @else {
+      <app-api-error [error]="error()" (retry)="verify()" />
+      <button matButton="filled" type="button" (click)="verify()">Verify email</button>
+    }
+  } @else {
+    <h1>Check your inbox</h1>
+    <p>We've sent a verification link to your email. Open it to start your lessons.</p>
+    <p class="muted">Lessons stay locked until your email is verified.</p>
+    <a matButton routerLink="/login">Back to log in</a>
+  }
+</section>

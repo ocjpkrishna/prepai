@@ -11,7 +11,9 @@
 ```
 features/lesson/lesson-input/
 ├── MODULE.md
-└── (components, services and routes are added by the owning agent)
+├── lesson-input.component.ts|html|scss  text question, photo flow, "We read this as…" review, generate
+├── lesson-input.options.ts          exam and difficulty options, MAX_TEXT_LENGTH
+└── image-prep.ts                    type check, downscale to 1600 px as JPEG, 5 MB limit
 ```
 
 ## Other modules may call
@@ -25,5 +27,5 @@ None. Feature state lives in components and `core/services`.
 - Follow spec 9.1.2 where it applies to the frontend: short methods, no magic numbers, no `TODO` comments.
 
 ## Status
-- [ ] components and routes
-- [ ] unit tests mirrored under `frontend/src/app/`
+- [x] components and routes
+- [x] unit tests mirrored under `frontend/src/app/`

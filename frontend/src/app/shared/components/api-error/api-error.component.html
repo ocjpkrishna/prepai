@@ -1,0 +1,17 @@
+@if (error(); as current) {
+  <div class="api-error" role="alert">
+    <p>{{ message() }}</p>
+    @if (isRateLimited() && remaining() > 0) {
+      <p class="countdown">Try again in {{ remaining() }}s</p>
+    }
+    @if (isDailyLimit()) {
+      <a matButton="filled" routerLink="/pricing">See plans</a>
+    }
+    @if (canRetry()) {
+      <button matButton (click)="retry.emit()">Retry</button>
+    }
+    @if (current.traceId) {
+      <p class="reference">Reference: {{ current.traceId }}</p>
+    }
+  </div>
+}

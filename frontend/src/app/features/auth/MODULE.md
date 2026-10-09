@@ -11,7 +11,15 @@
 ```
 features/auth/
 ├── MODULE.md
-└── (components, services and routes are added by the owning agent)
+├── auth.routes.ts                   /login, /register, /verify-email, /guardian-pending, /guardian-consent
+├── age-gate.ts                      isMinor(dateOfBirth), the under-18 check (spec 2.7)
+├── return-url.ts                    safeReturnUrl(): only same-site paths after login
+├── auth-form.scss                   form layout shared by the auth pages
+├── login/                           email and password; Google button is a disabled placeholder
+├── register/                        name, email, password, date of birth, guardian email for minors, terms
+├── verify-email/                    "check your inbox", or verifies the emailed token
+├── guardian-pending/                "waiting for guardian consent" screen (CONSENT_REQUIRED)
+└── guardian-consent/                guardian's public consent page (token from the email)
 ```
 
 ## Other modules may call
@@ -25,5 +33,5 @@ None. Feature state lives in components and `core/services`.
 - Follow spec 9.1.2 where it applies to the frontend: short methods, no magic numbers, no `TODO` comments.
 
 ## Status
-- [ ] components and routes
-- [ ] unit tests mirrored under `frontend/src/app/`
+- [x] components and routes
+- [x] unit tests mirrored under `frontend/src/app/`

@@ -11,7 +11,7 @@
 ```
 features/pricing/
 ├── MODULE.md
-└── (components, services and routes are added by the owning agent)
+├── pricing.component.ts|html|scss   plans from the API; choosing a paid plan starts Razorpay checkout
 ```
 
 ## Other modules may call
@@ -25,5 +25,5 @@ None. Feature state lives in components and `core/services`.
 - Follow spec 9.1.2 where it applies to the frontend: short methods, no magic numbers, no `TODO` comments.
 
 ## Status
-- [ ] components and routes
-- [ ] unit tests mirrored under `frontend/src/app/`
+- [x] components and routes
+- [x] unit tests mirrored under `frontend/src/app/` (smoke test only, see handoff)
