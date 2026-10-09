@@ -11,8 +11,16 @@
 ```
 ops/
 ├── MODULE.md
-└── (runbooks and monitoring config are added by Agent 9)
+├── grafana/
+│   ├── alert-rules.json        8 PrepAI alert rules (compact form; scripts/grafana-sync.sh expands them)
+│   └── dashboards/             4 dashboards: lesson pipeline, LLM cost and retries, errors, business funnel
+├── prometheus/prometheus.yml   scrapes 127.0.0.1:9091 (installed to /etc/prepai/prometheus.yml)
+├── logrotate/prepai            30 daily rotations of /var/log/prepai/*.log
+└── systemd/
+    ├── prepai.service          the Spring Boot app, user prepai, EnvironmentFile /etc/prepai/prepai.env
+    └── prepai-prometheus.service   Prometheus on 127.0.0.1:9095, 15-day retention
 ```
+Scripts in `scripts/`: `install.sh` (bootstrap), `deploy.sh` (build, release, health check, rollback), `grafana-sync.sh` (dashboards, alert rules, data source in the `PrepAI` folder only; `--dry-run` prints the payloads without contacting Grafana).
 
 ## Other modules may call
 Nothing. Code never imports from `ops`.
@@ -27,5 +35,13 @@ None. Configuration comes from `/etc/prepai/prepai.env` (mode 600). The sample i
 
 ## Status
 - [x] `scripts/install.sh`, `nginx/prepai.conf.template`, `.env.example` (row 1)
-- [ ] `scripts/deploy.sh` and the systemd unit (row 12)
-- [ ] Prometheus and Grafana sync (row 12)
+- [x] `scripts/deploy.sh`, `ops/systemd/prepai.service` (row 12). Not run on a real VPS yet
+- [x] Prometheus unit and config, `scripts/grafana-sync.sh`, `ops/grafana/` (row 12). Not run against the real Grafana yet
+- [x] logrotate config (row 12)
+- [ ] VoiceStudio unit (its source is not in the repo, spec 10.1)
+- [ ] Monitoring script for disk, RAM and VoiceStudio/PostgreSQL/Redis health (spec 9.2 item 7); needs a health source for the alerts in spec 8.4
+
+## Gotchas (row 12)
+- `deploy.sh` runs as root (`sudo`), like `install.sh`. A restart takes the single app down for a few seconds; in-flight requests finish within the 30 s graceful stop. Spec 9.2 asks for zero downtime, which needs a second instance and is not built.
+- Only the `prepai` alert rule "PrepAI app is down" checks availability (`up`). Spec 8.4 also asks for alerts on VoiceStudio, PostgreSQL, Redis, disk and RAM. Prometheus has no metric for them, so those alerts are not built.
+- The `PrepAI` Grafana folder and data source are created by `grafana-sync.sh`. Routing the `app=prepai` alerts to email is a manual step in the Grafana UI (TODO-5).
