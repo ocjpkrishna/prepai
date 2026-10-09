@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 concurrency:
   group: frontend-pages
@@ -54,3 +55,11 @@ jobs:
           git add -A
           git commit -q -m "Deploy ${GITHUB_SHA::7} from ${GITHUB_REF_NAME}"
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+
+      - name: Enable Pages on the gh-pages branch (needs admin rights, skipped if refused)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages" -f "source[branch]=gh-pages" -f "source[path]=/" \
+            || echo "Pages is already enabled or the token may not enable it; set Settings, Pages, Source to gh-pages."
