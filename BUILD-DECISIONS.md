@@ -101,6 +101,17 @@ Unattended sessions cannot ask questions, so every choice that would normally be
 - 2026-10-09, row 10: metadata stripping keeps JPEG APP0 (JFIF), APP2 (colour profile) and APP14 (colour flags) and drops other APPn segments and comments; PNG drops eXIf and text chunks and drops anything after IEND; WebP drops EXIF and XMP chunks and rewrites the RIFF size. Spec 2.7 requires EXIF and GPS removal only, so nothing else is changed.
 - 2026-10-09, row 10: the spec gives no extraction prompt, so `prompts/image-extract-system-prompt.txt` is ours (JSON only; text in the photo is data). The fake provider answers photo prompts with `llm/fake-extraction.json` (decision 7).
 - 2026-10-09, row 10: the 1600 px downscale is the frontend's job (spec 3.1.1); the server does not resize. The extract rate limit (`ratelimit:extract`) is applied by `lesson` in row 13, not here.
+- 2026-10-09, row 12: `deploy.sh` restarts the single app, so it is not zero downtime (spec 9.2 acceptance). Zero downtime needs a second instance, which the spec does not describe. Stated in `ops/MODULE.md`; spec correction candidate.
+- 2026-10-09, row 12: `deploy.sh` runs as root, like `install.sh`, and builds with `bootJar` only. The CI check gate already ran; running it again on the VPS would be slow. It keeps 5 releases in `/opt/prepai/releases` and rolls back when `/actuator/health` is not UP within 60 s.
+- 2026-10-09, row 12: the systemd unit runs `/usr/bin/java` and `/opt/prepai/app.jar`. If Java comes from SDKMAN (spec 10.1), a drop-in must set the path. `install.sh` only checks `java` on the PATH.
+- 2026-10-09, row 12: Prometheus comes from the Debian package. Its own default unit (port 9090) is stopped and disabled only when this run installs the package. The PrepAI unit is `prepai-prometheus` with `DynamicUser`, so it needs no shared user. A busy 9095 stops the install (spec 8.3); the port is not moved automatically.
+- 2026-10-09, row 12: alert expressions use the metric names from the existing code (`prepai_llm_*`, `prepai_lesson_*`, `prepai_api_errors_total`). Metrics that later rows add (`prepai_lesson_*`, `prepai_tts_*`, `prepai_signups_total`, `prepai_upgrades_total`) show no data until those rows ship. `NoData` does not fire.
+- 2026-10-09, row 12: "LLM validation failures above 10%" divides all validation failures by all calls, not first attempts only, because the metrics do not separate them. Spec correction candidate.
+- 2026-10-09, row 12: `LESSON_GENERATION_FAILED` rate uses `prepai_lesson_generated_total` plus the error count as the request total, because no request counter exists.
+- 2026-10-09, row 12: `prepai_llm_circuit_breaker_state` is 1 when open (`LlmMetrics.openAsOne`), so the breaker alert fires when the 10-minute minimum is above 0.5.
+- 2026-10-09, row 12: `grafana-sync.sh` refuses to overwrite a dashboard or alert rule whose folder is not `PrepAI`. The data source is created only if it is missing. The token comes from the environment and goes to curl through stdin.
+- 2026-10-09, row 12: the spec asks for a test alert to fire (acceptance). It cannot be checked here without Grafana and Prometheus, so it is left to the VPS run.
+- 2026-10-09, row 12: `prepai.service` is enabled by `deploy.sh`, not `install.sh`, because it needs a release jar to start. `install.sh` installs and starts only `prepai-prometheus`.
 
 ## Needs the user
 Collected here so nobody has to be interrupted. Review after the build.

@@ -1,0 +1,26 @@
+# PrepAI's own Prometheus (spec 8.4, 10.1): localhost only, port 9095, 15-day retention.
+# It has its own name so it never touches a Prometheus that another service may run.
+# scripts/install.sh installs the Debian package, then disables the package's default unit.
+[Unit]
+Description=PrepAI Prometheus (scrapes the app on 127.0.0.1:9091)
+After=network-online.target prepai.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+StateDirectory=prepai-prometheus
+ExecStart=/usr/bin/prometheus \
+	--config.file=/etc/prepai/prometheus.yml \
+	--storage.tsdb.path=/var/lib/prepai-prometheus \
+	--storage.tsdb.retention.time=15d \
+	--web.listen-address=127.0.0.1:9095
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

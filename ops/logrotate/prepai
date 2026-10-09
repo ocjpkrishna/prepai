@@ -1,0 +1,12 @@
+# JSON logs of the PrepAI app (spec 8.4, 9.2 Agent 9): 30 days, compressed, never world-readable.
+# copytruncate keeps the app running, so no restart is needed on rotation.
+/var/log/prepai/*.log {
+	daily
+	rotate 30
+	missingok
+	notifempty
+	compress
+	delaycompress
+	copytruncate
+	create 0640 prepai prepai
+}

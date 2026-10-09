@@ -1,0 +1,66 @@
+[
+  {
+    "uid": "prepai-llm-retry-rate",
+    "title": "LLM retry rate above 15%",
+    "severity": "warning",
+    "expr": "sum(increase(prepai_llm_retry_total[1h])) / sum(increase(prepai_llm_calls_total[1h]))",
+    "op": "gt", "threshold": 0.15, "for": "5m",
+    "summary": "More than 15% of LLM calls were retried over the last hour (cost risk, spec 8.4)."
+  },
+  {
+    "uid": "prepai-llm-validation-failures",
+    "title": "LLM validation failures above 10%",
+    "severity": "warning",
+    "expr": "sum(increase(prepai_llm_validation_failures_total[1h])) / sum(increase(prepai_llm_calls_total[1h]))",
+    "op": "gt", "threshold": 0.10, "for": "5m",
+    "summary": "More than 10% of LLM replies failed validation over the last hour. Counts every attempt, not only the first."
+  },
+  {
+    "uid": "prepai-cost-per-lesson",
+    "title": "Average LLM cost per lesson above 0.05 USD",
+    "severity": "warning",
+    "expr": "sum(increase(prepai_llm_cost_usd_total[1h])) / sum(increase(prepai_lesson_generated_total[1h]))",
+    "op": "gt", "threshold": 0.05, "for": "5m",
+    "summary": "Average cost per lesson is above 0.05 USD over the last hour (spec 8.4)."
+  },
+  {
+    "uid": "prepai-lesson-latency-p95",
+    "title": "Lesson latency p95 above 10 s",
+    "severity": "warning",
+    "expr": "histogram_quantile(0.95, sum by (le) (rate(prepai_lesson_latency_seconds_bucket[15m])))",
+    "op": "gt", "threshold": 10, "for": "15m",
+    "summary": "p95 lesson latency has been above 10 s for 15 minutes (spec 8.4 target)."
+  },
+  {
+    "uid": "prepai-lesson-generation-failed",
+    "title": "LESSON_GENERATION_FAILED above 2%",
+    "severity": "critical",
+    "expr": "sum(increase(prepai_api_errors_total{code=\"LESSON_GENERATION_FAILED\"}[15m])) / (sum(increase(prepai_lesson_generated_total[15m])) + sum(increase(prepai_api_errors_total{code=\"LESSON_GENERATION_FAILED\"}[15m])))",
+    "op": "gt", "threshold": 0.02, "for": "0s",
+    "summary": "More than 2% of lesson requests failed with LESSON_GENERATION_FAILED over 15 minutes."
+  },
+  {
+    "uid": "prepai-circuit-breaker-open",
+    "title": "LLM circuit breaker open for 10 minutes",
+    "severity": "critical",
+    "expr": "min_over_time(prepai_llm_circuit_breaker_state[10m])",
+    "op": "gt", "threshold": 0.5, "for": "0s",
+    "summary": "The Claude circuit breaker has stayed open for 10 minutes (1 = open)."
+  },
+  {
+    "uid": "prepai-tts-error-rate",
+    "title": "TTS error rate above 10%",
+    "severity": "warning",
+    "expr": "sum(increase(prepai_tts_requests_total{outcome=\"error\"}[15m])) / sum(increase(prepai_tts_requests_total[15m]))",
+    "op": "gt", "threshold": 0.10, "for": "0s",
+    "summary": "More than 10% of TTS requests failed over 15 minutes (VoiceStudio health)."
+  },
+  {
+    "uid": "prepai-app-down",
+    "title": "PrepAI app is down",
+    "severity": "critical",
+    "expr": "up{job=\"prepai\"}",
+    "op": "lt", "threshold": 1, "for": "2m",
+    "summary": "Prometheus cannot scrape the app on 127.0.0.1:9091. VoiceStudio, PostgreSQL and Redis checks need a separate health source (see BUILD-DECISIONS.md)."
+  }
+]
