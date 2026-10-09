@@ -1,8 +1,8 @@
 # PrepAI — Product Specification Document
 ## AI Whiteboard Tutor for Indian Students
 
-**Version:** 2.10
-**Date:** October 8, 2026
+**Version:** 2.11
+**Date:** October 9, 2026
 **Author:** Krishna (Ascorp Softwares)
 **Status:** Ready for AIDLC + SEF Pipeline
 **Methodology:** Hybrid — SEF (scaffolding) + AIDLC (feature development)
@@ -17,6 +17,7 @@
 - v2.7 — Code structure rules (9.1.1): one `agentN` package per agent, feature sub-packages with controller/service/repository/model layers, shared models in `model/common`, and an `agent.md` per agent. Added `refresh_tokens` and `verification_tokens` tables (missing for Agent 2), and moved lesson orchestration (reserve/commit/release) to Agent 4.
 - v2.8 — Code quality standards (9.1.2): story-style code, hard limits, SOLID and Spring patterns, testability rules and a definition of done. Enforced in the build by Checkstyle, an ArchUnit architecture test, JaCoCo coverage and `lombok.config`.
 - v2.9 — Code is organised by business module (`account`, `quota`, `generation`, `lesson`, `billing`, `speech`, `common`) instead of per-agent packages; agent assignment is recorded in one table. Each module has a `MODULE.md` and `prepai/ARCHITECTURE.md` indexes them. The "Day 1 / Day 2" plan is replaced by a dependency-ordered build.
+- v2.11 — Whiteboard changed from a Konva canvas with pixel coordinates to an SVG board driven by named tools with `ref`s and a self-correcting `ok:`/`error:` validator (3.3, 3.4, Agent 5). Dudely is a user-experience reference only (`docs/dudely-reference.md`).
 - v2.10 — Added TODO-9 (no LLM API key exists; the build uses a fake lesson provider until a provider is chosen).
 
 ---
@@ -60,7 +61,7 @@ Unlike chatbot-style AI tutors (EaseLearn, Edza AI) that dump text answers, Prep
 │                        CLIENT (Browser)                       │
 │                                                               │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────┐ │
-│  │  Angular App │  │ Konva.js     │  │  VoiceStudio TTS     │ │
+│  │  Angular App │  │ SVG board    │  │  VoiceStudio TTS     │ │
 │  │  (UI Layer)  │──│ (Whiteboard) │──│  (Voice Service)     │ │
 │  │  Port: 4300  │  │ + KaTeX      │  │                      │ │
 │  └──────┬──────┘  └──────────────┘  └──────────────────────┘ │
@@ -129,7 +130,7 @@ flowchart TB
     subgraph client["Client - Angular 18 app (dev port 4300)"]
         direction LR
         ui["UI layer"]
-        wb["Konva.js whiteboard<br/>+ KaTeX equations"]
+        wb["SVG whiteboard (rough.js)<br/>+ KaTeX equations"]
         ttsc["TTS service<br/>audio playback"]
         ui --> wb
         ui --> ttsc
@@ -197,7 +198,7 @@ flowchart TB
 | Layer | Technology | Rationale |
 |-------|-----------|-----------|
 | Frontend | Angular 18+ | Krishna's primary frontend skill |
-| Canvas | Konva.js | High-performance 2D canvas rendering, animation support |
+| Whiteboard | SVG + rough.js | Hand-drawn look, stroke draw-in animation (`stroke-dashoffset`), crisp at any size; no canvas library |
 | Math Rendering | KaTeX | Fastest LaTeX renderer for browser, exam-quality equations |
 | TTS | VoiceStudio (local) | Free, 646 languages, Hindi support, voice cloning, zero API cost |
 | Backend | Java 21 + Spring Boot 4.1.1 (Spring Framework 7, Spring AI 2.0.1) | Krishna's core expertise. Project generated with Spring Initializr (group `com.ascorp`, package `com.ascorp.prepai`) |
@@ -286,7 +287,7 @@ LLM output is untrusted. Every response, from any provider, passes through `Less
 |-------|--------|
 | Parse | Valid JSON (stray markdown fences stripped defensively) that deserializes into `LessonResponse` |
 | Structure | 3–7 steps; `stepNumber` sequential from 1; `totalSteps` equals the step count; every step has title, narration and at least one canvas action or equation; `summary.keyResults` non-empty; `masteryCheck` has exactly 4 options with exactly one correct |
-| Canvas | Every action `type` is in the 3.3 allow-list; required `config` fields for that type are present; all coordinates are inside 800×500; drawing actions stay inside x 0–500; equation positions are inside the panel (x 500–800); `animationDuration` 100–5000 ms; at most 40 actions per step |
+| Whiteboard | Every `tool` is in the 3.3 allow-list and every `kind` is a known `sketch` or `diagram` kind; required fields are present; every `ref` that a later tool uses (`target`, `from`, `to`) was created earlier; `math` content parses as LaTeX and prose is `text`; `begin_concept` ids exist in `plan`; at most 40 tools per step. Replies follow 3.3.1 |
 | Text safety | HTML/script stripped from every string; narration contains no LaTeX or markup characters (`\ _ ^ $ { }`) because it must be speakable; narration ≤ 600 chars per step; LaTeX denylist (`\input`, `\include`, `\href`, `\url`, `\write`, `\def`, `\csname`) |
 
 A response of `{ "error": "OUT_OF_SCOPE" }` (see 6.1) is mapped to `PROBLEM_OUT_OF_SCOPE` (422).
@@ -414,183 +415,62 @@ This is the core data contract. Every LLM response MUST be parsed into this form
   "difficulty": "MEDIUM",
   "totalSteps": 4,
   "estimatedDurationSeconds": 180,
+  "plan": [
+    { "id": "c1", "label": "Resolve the velocity" },
+    { "id": "c2", "label": "Time of flight" },
+    { "id": "c3", "label": "Maximum height" },
+    { "id": "c4", "label": "Horizontal range" }
+  ],
   "steps": [
     {
       "stepNumber": 1,
       "title": "Resolve velocity into components",
       "narration": "First, we need to break the initial velocity into horizontal and vertical components. The horizontal component is u times cos theta, and the vertical component is u times sin theta.",
-      "canvas": {
-        "actions": [
-          {
-            "type": "DRAW_AXIS",
-            "config": {
-              "origin": { "x": 100, "y": 300 },
-              "xLength": 400,
-              "yLength": 250,
-              "xLabel": "Horizontal",
-              "yLabel": "Vertical"
-            },
-            "animationDuration": 1000
-          },
-          {
-            "type": "DRAW_ARROW",
-            "config": {
-              "from": { "x": 100, "y": 300 },
-              "to": { "x": 350, "y": 100 },
-              "label": "u = 20 m/s",
-              "color": "#4A90D9",
-              "angle": 60
-            },
-            "animationDuration": 800
-          },
-          {
-            "type": "DRAW_DASHED_LINE",
-            "config": {
-              "from": { "x": 100, "y": 300 },
-              "to": { "x": 350, "y": 300 },
-              "label": "uₓ = 10 m/s",
-              "color": "#E74C3C"
-            },
-            "animationDuration": 600
-          },
-          {
-            "type": "DRAW_DASHED_LINE",
-            "config": {
-              "from": { "x": 350, "y": 300 },
-              "to": { "x": 350, "y": 100 },
-              "label": "uᵧ = 10√3 m/s",
-              "color": "#2ECC71"
-            },
-            "animationDuration": 600
-          },
-          {
-            "type": "DRAW_ARC",
-            "config": {
-              "center": { "x": 100, "y": 300 },
-              "radius": 50,
-              "startAngle": 0,
-              "endAngle": 60,
-              "label": "60°"
-            },
-            "animationDuration": 400
-          }
-        ]
-      },
-      "equations": [
-        {
-          "latex": "u_x = u \\cos 60° = 20 \\times 0.5 = 10 \\text{ m/s}",
-          "highlight": true,
-          "position": { "x": 520, "y": 150 }
-        },
-        {
-          "latex": "u_y = u \\sin 60° = 20 \\times \\frac{\\sqrt{3}}{2} = 10\\sqrt{3} \\text{ m/s}",
-          "highlight": true,
-          "position": { "x": 520, "y": 200 }
-        }
+      "tools": [
+        { "tool": "begin_concept", "id": "c1" },
+        { "tool": "sketch", "ref": "ax", "kind": "axes", "params": { "xLabel": "Horizontal", "yLabel": "Vertical" } },
+        { "tool": "sketch", "ref": "u", "kind": "arrow", "params": { "angle": 60, "label": "u = 20 m/s", "color": "blue" } },
+        { "tool": "sketch", "ref": "ux", "kind": "line", "params": { "along": "x", "dashed": true, "label": "uₓ = 10 m/s", "color": "red" } },
+        { "tool": "sketch", "ref": "uy", "kind": "line", "params": { "along": "y", "dashed": true, "label": "uᵧ = 10√3 m/s", "color": "green" } },
+        { "tool": "write", "ref": "e1", "kind": "math", "content": "u_x = u \\cos 60° = 20 \\times 0.5 = 10 \\text{ m/s}" },
+        { "tool": "write", "ref": "e2", "kind": "math", "content": "u_y = u \\sin 60° = 20 \\times \\frac{\\sqrt{3}}{2} = 10\\sqrt{3} \\text{ m/s}" },
+        { "tool": "emphasize", "target": "e2", "color": "yellow" }
       ]
     },
     {
       "stepNumber": 2,
       "title": "Calculate time of flight",
       "narration": "The time of flight is the total time the particle stays in the air. Since it returns to the same height, we use the formula T equals 2 u-y divided by g.",
-      "canvas": {
-        "actions": [
-          {
-            "type": "DRAW_PARABOLA",
-            "config": {
-              "start": { "x": 100, "y": 300 },
-              "peak": { "x": 275, "y": 100 },
-              "end": { "x": 450, "y": 300 },
-              "color": "#4A90D9",
-              "dashed": false
-            },
-            "animationDuration": 1200
-          },
-          {
-            "type": "DRAW_DOUBLE_ARROW",
-            "config": {
-              "from": { "x": 100, "y": 320 },
-              "to": { "x": 450, "y": 320 },
-              "label": "T = 2√3 s",
-              "color": "#E67E22"
-            },
-            "animationDuration": 600
-          }
-        ]
-      },
-      "equations": [
-        {
-          "latex": "T = \\frac{2u_y}{g} = \\frac{2 \\times 10\\sqrt{3}}{10} = 2\\sqrt{3} \\approx 3.46 \\text{ s}",
-          "highlight": true,
-          "position": { "x": 520, "y": 150 }
-        }
+      "tools": [
+        { "tool": "begin_concept", "id": "c2" },
+        { "tool": "sketch", "ref": "path", "kind": "parabola", "params": { "from": "ax.origin", "to": "ax.x", "color": "blue" } },
+        { "tool": "sketch", "ref": "T", "kind": "bracket", "params": { "spans": "path", "side": "below", "label": "T = 2√3 s", "color": "orange" } },
+        { "tool": "write", "ref": "e3", "kind": "math", "content": "T = \\frac{2u_y}{g} = \\frac{2 \\times 10\\sqrt{3}}{10} = 2\\sqrt{3} \\approx 3.46 \\text{ s}" },
+        { "tool": "emphasize", "target": "e3", "color": "yellow" }
       ]
     },
     {
       "stepNumber": 3,
       "title": "Calculate maximum height",
       "narration": "At the highest point, the vertical velocity becomes zero. Using v-squared equals u-squared minus 2gH, we can find the maximum height.",
-      "canvas": {
-        "actions": [
-          {
-            "type": "DRAW_DASHED_LINE",
-            "config": {
-              "from": { "x": 275, "y": 300 },
-              "to": { "x": 275, "y": 100 },
-              "label": "H = 15 m",
-              "color": "#9B59B6"
-            },
-            "animationDuration": 600
-          },
-          {
-            "type": "DRAW_POINT",
-            "config": {
-              "position": { "x": 275, "y": 100 },
-              "label": "vᵧ = 0",
-              "color": "#E74C3C",
-              "radius": 5
-            },
-            "animationDuration": 300
-          }
-        ]
-      },
-      "equations": [
-        {
-          "latex": "H = \\frac{u_y^2}{2g} = \\frac{(10\\sqrt{3})^2}{20} = \\frac{300}{20} = 15 \\text{ m}",
-          "highlight": true,
-          "position": { "x": 520, "y": 150 }
-        }
+      "tools": [
+        { "tool": "begin_concept", "id": "c3" },
+        { "tool": "sketch", "ref": "H", "kind": "line", "params": { "from": "path.peak", "to": "ax.x", "dashed": true, "label": "H = 15 m", "color": "purple" } },
+        { "tool": "sketch", "ref": "top", "kind": "circle", "params": { "at": "path.peak", "label": "vᵧ = 0", "color": "red" } },
+        { "tool": "write", "ref": "e4", "kind": "math", "content": "H = \\frac{u_y^2}{2g} = \\frac{(10\\sqrt{3})^2}{20} = \\frac{300}{20} = 15 \\text{ m}" },
+        { "tool": "emphasize", "target": "e4", "color": "yellow" }
       ]
     },
     {
       "stepNumber": 4,
       "title": "Calculate horizontal range",
       "narration": "The horizontal range is simply the horizontal velocity multiplied by the total time of flight. We can also verify this using the range formula.",
-      "canvas": {
-        "actions": [
-          {
-            "type": "DRAW_DOUBLE_ARROW",
-            "config": {
-              "from": { "x": 100, "y": 340 },
-              "to": { "x": 450, "y": 340 },
-              "label": "R = 20√3 ≈ 34.64 m",
-              "color": "#27AE60"
-            },
-            "animationDuration": 600
-          }
-        ]
-      },
-      "equations": [
-        {
-          "latex": "R = u_x \\times T = 10 \\times 2\\sqrt{3} = 20\\sqrt{3} \\approx 34.64 \\text{ m}",
-          "highlight": true,
-          "position": { "x": 520, "y": 150 }
-        },
-        {
-          "latex": "\\text{Verify: } R = \\frac{u^2 \\sin 2\\theta}{g} = \\frac{400 \\times \\sin 120°}{10} = 20\\sqrt{3} \\checkmark",
-          "highlight": false,
-          "position": { "x": 520, "y": 220 }
-        }
+      "tools": [
+        { "tool": "begin_concept", "id": "c4" },
+        { "tool": "sketch", "ref": "R", "kind": "bracket", "params": { "spans": "ax.x", "side": "below", "label": "R = 20√3 ≈ 34.64 m", "color": "green" } },
+        { "tool": "write", "ref": "e5", "kind": "math", "content": "R = u_x \\times T = 10 \\times 2\\sqrt{3} = 20\\sqrt{3} \\approx 34.64 \\text{ m}" },
+        { "tool": "write", "ref": "e6", "kind": "math", "content": "\\text{Verify: } R = \\frac{u^2 \\sin 2\\theta}{g} = \\frac{400 \\times \\sin 120°}{10} = 20\\sqrt{3} \\checkmark" },
+        { "tool": "write", "ref": "t1", "kind": "text", "content": "Same answer both ways." }
       ]
     }
   ],
@@ -615,38 +495,41 @@ This is the core data contract. Every LLM response MUST be parsed into this form
 }
 ```
 
-### 3.3 Canvas Action Types
+### 3.3 Whiteboard Tools
 
-The frontend canvas engine (Konva.js) MUST support these action types:
+Reference: `docs/dudely-reference.md` (Dudely is a user-experience reference only; the vocabulary below is PrepAI's own).
 
-| Action Type | Description | Required Config |
-|-------------|-------------|-----------------|
-| `DRAW_AXIS` | X-Y coordinate axes | origin, xLength, yLength, labels |
-| `DRAW_ARROW` | Directional arrow with label | from, to, label, color, angle |
-| `DRAW_DASHED_LINE` | Dashed line with label | from, to, label, color |
-| `DRAW_LINE` | Solid line | from, to, color, strokeWidth |
-| `DRAW_ARC` | Arc/angle indicator | center, radius, startAngle, endAngle, label |
-| `DRAW_PARABOLA` | Parabolic curve | start, peak, end, color |
-| `DRAW_CIRCLE` | Circle | center, radius, color, fill |
-| `DRAW_POINT` | Labeled point | position, label, color, radius |
-| `DRAW_DOUBLE_ARROW` | Measurement arrow (both ends) | from, to, label, color |
-| `WRITE_TEXT` | Text annotation | position, text, fontSize, color |
-| `WRITE_LATEX` | LaTeX equation on canvas (KaTeX) | position, latex, fontSize |
-| `DRAW_VECTOR` | Physics vector | origin, magnitude, angle, label, color |
-| `DRAW_FREE_BODY` | Free body diagram | center, forces[] |
-| `DRAW_CIRCUIT` | Simple circuit diagram | components[] |
-| `DRAW_GRAPH` | Function graph | fn, xRange, yRange, color |
-| `HIGHLIGHT_REGION` | Shaded region | points[], color, opacity |
-| `CLEAR_CANVAS` | Clear for next step | keepElements[] |
-| `FADE_OUT` | Fade out elements | elementIds[], duration |
+The LLM does not send coordinates. It calls named **tools** on a continuous board, and the frontend (SVG renderer) decides where things go. Every object has a `ref`; later tools point at a `ref`; reusing a `ref` replaces the object.
 
-### 3.4 Canvas Coordinate System
+| Tool | Purpose | Main fields |
+|------|---------|-------------|
+| `plan_lesson` | Concepts in teaching order | concepts[] (id, label) |
+| `begin_concept` | Move to a concept of the plan | id |
+| `write` | Handwriting text or a KaTeX formula | ref, kind (`text` or `math`), content |
+| `sketch` | A named shape | ref, kind (see below), params, label |
+| `diagram` | Auto-laid-out graph | ref, kind (`flow`, `tree`, `network`, `columns`, `timeline`), nodes, links |
+| `image` | Generated illustration of a real thing | ref, prompt |
+| `connect` | Arrow between two refs | from, to, label |
+| `emphasize` / `highlight` | Draw attention to a ref or a part of it | target, part, color |
+| `fill` | Shade a ref | target, color |
+| `erase` | Remove a ref | target |
+| `move` | Re-place a ref | target, near |
+| `clear_board` | Explicit reset (rare) | none |
 
-- Canvas size: 800 x 500 (logical pixels, responsive scaling)
-- Origin (0,0) at top-left
-- Equation panel: right side, x > 500
-- Drawing area: left side, x: 0-500, y: 0-500
-- All coordinates in the JSON are logical; the renderer scales to viewport
+`new_page` is accepted and ignored: the board is one continuous notebook that grows downward and follows the pen.
+
+**`sketch` kinds (launch set):** axes, curve, line, arrow, box, circle, bracket, table, number_line, triangle (scalene, isosceles, equilateral, right), square, pentagon, hexagon, sine_wave, square_wave, sawtooth, parabola, freeform. JEE and NEET kinds (free-body, circuit, ray optics, chemistry structure, building and ground scene) are added after launch, one at a time; until then `image` covers them.
+
+**Text versus math.** Prose is `kind: text` (handwriting font). Only formulas are `kind: math` (KaTeX, LaTeX source such as `\sqrt{x}`, `\times`).
+
+#### 3.3.1 Validator replies (`ok:` / `error:`)
+The server runs every generated lesson through the tool validator. Each tool call produces a short reply, `ok: ...` or `error: <reason>, so NOTHING was drawn; draw it now with <fix>`. On any error the LLM gets the replies once (one repair round) and re-issues the failed calls; a second failure rejects the lesson. Checks include: unknown tool or kind; reference to a `ref` that does not exist; a sentence sent as `math`; `begin_concept` before `plan_lesson` or with an unknown id; a connector whose endpoints cannot be laid out or are too far apart; narration that describes a trend or a wave without a matching graph or wave shape on the board. A failed draw never falls back to a bare line.
+
+### 3.4 Board Layout
+
+- The board is an infinite, dotted-grid SVG notebook; it grows downward and auto-scrolls to follow the marker cursor.
+- Lessons carry no pixel coordinates. The renderer places objects from their relations (`connect`, `near`, order of writing) and avoids overlaps using bounding boxes.
+- Whiteboard and chalkboard are two themes of the same board. Dark mode is supported.
 
 ---
 
@@ -1194,7 +1077,7 @@ src/
 │   │   │   │   └── lesson-input.component.html
 │   │   │   ├── whiteboard/
 │   │   │   │   ├── whiteboard.component.ts
-│   │   │   │   ├── canvas-renderer.service.ts    (Konva.js — draws actions on canvas)
+│   │   │   │   ├── canvas-renderer.service.ts    (SVG + rough.js — runs whiteboard tools)
 │   │   │   │   ├── animation-engine.service.ts   (timing, sequencing, easing)
 │   │   │   │   ├── equation-renderer.service.ts  (KaTeX rendering)
 │   │   │   │   └── whiteboard.component.html
@@ -1270,7 +1153,7 @@ flowchart TB
     end
 
     subgraph wbint["whiteboard internals"]
-        renderer["CanvasRendererService<br/>Konva.js"]
+        renderer["CanvasRendererService<br/>SVG + rough.js"]
         anim["AnimationEngineService<br/>timing and easing"]
         eq["EquationRendererService<br/>KaTeX"]
     end
@@ -1353,7 +1236,7 @@ sequenceDiagram
     par Narration
         T->>S: play audio at the chosen speed
     and Drawing
-        P->>WB: run step 1 canvas actions and equations
+        P->>WB: run step 1 whiteboard tools
     end
     P->>T: prefetch step 2 audio
     T->>API: POST /tts/synthesize
@@ -1750,7 +1633,7 @@ A task is not finished while `./gradlew check` is red. Agents never disable a ga
    - Deliberately not included: Spring AI vector stores (the `problem_embeddings` schema is custom), springdoc/Swagger (not required), jjwt (replaced by the OAuth2 resource server), logstash-logback-encoder (Boot has structured logging), and the GraalVM native plugin (we deploy a normal JVM jar)
    - Configuration files (see 10.4): `application.yaml` (shared), `application-local.yml` (default profile, local development) and `application-prod.yml` (production). Ports in both profiles: app 8085, management 9091, bound to 127.0.0.1
 3. Scaffold Angular 18 project (frontend/)
-   - Dependencies: @angular/material, konva, ng2-konva, katex
+   - Dependencies: @angular/material, roughjs, katex
    - `angular.json`: serve port 4300
 4. VPS setup script (`scripts/install.sh`): PostgreSQL 17 + pgvector extension + Redis 8 + nginx + VoiceStudio. It must be idempotent and skip anything already installed (PostgreSQL 17 and Redis 8 are already on this VPS). It creates the production database and role with a generated password, and installs the `vector` extension as a superuser, since the application role cannot. It never touches the shared MongoDB or QuestDB
 5. GitHub Actions CI: build → test → deploy to VPS
@@ -1836,26 +1719,26 @@ A task is not finished while `./gradlew check` is red. Agents never disable a ga
 
 ---
 
-#### AGENT 5: Frontend — Canvas/Whiteboard Engine (Konva.js + KaTeX)
+#### AGENT 5: Frontend — Whiteboard Engine (SVG + rough.js + KaTeX)
 **Builds:** `frontend/src/app/features/lesson/whiteboard/` (`MODULE.md` in that folder).
 **Model:** Claude Sonnet 5.5
 **Depends on:** Agent 1
-**This is the CORE differentiator — highest quality bar**
+**This is the CORE differentiator — highest quality bar.** Reference: `docs/dudely-reference.md` (user experience only; no copied code, assets or prompts).
 
 **Tasks:**
-1. Implement `CanvasRendererService` using Konva.js, supporting ALL action types (section 3.3)
-2. Animation engine with easing functions (easeOutCubic, linear, easeInOut)
-3. Each action type must animate smoothly — arrows grow, curves trace, text fades in
-4. KaTeX equation rendering in overlay div positioned relative to canvas
-5. Canvas scaling — responsive to viewport, maintain 800:500 aspect ratio
-6. Step transition — subtle fade between steps, optional "clear and redraw"
-7. Color theming — dark mode (default) and light mode support
-8. Drawing pointer/cursor that follows the active drawing point (like a pen tip)
-9. Defensive rendering, never throw on bad data: unknown action types are skipped, missing config fields use safe defaults or the action is skipped, out-of-bounds coordinates are clamped. Each case logs a console warning and emits a `renderWarning` event. One bad action must not stop the lesson
+1. Implement `CanvasRendererService` as an SVG renderer for every tool in section 3.3 (`write`, `sketch`, `diagram`, `image`, `connect`, `emphasize`, `highlight`, `fill`, `erase`, `move`, `plan_lesson`, `begin_concept`, `clear_board`; `new_page` is ignored)
+2. Hand-drawn look with rough.js; strokes draw in with `stroke-dasharray` / `stroke-dashoffset`; easing functions (easeOutCubic, linear, easeInOut)
+3. Handwriting text: a handwriting font with Latin and Devanagari (candidate: Kalam) revealed left to right; math with KaTeX
+4. A marker cursor that follows the active stroke, with a name tag
+5. Layout engine: places objects from their relations with bounding-box overlap avoidance; no pixel coordinates in lessons; infinite dotted-grid board that grows downward and auto-scrolls to follow the marker
+6. `diagram` kinds (`flow`, `tree`, `network`, `columns`, `timeline`) laid out automatically
+7. Whiteboard and chalkboard themes, light and dark mode
+8. Client-side checks mirroring the server validator replies (3.3.1) for unknown refs and unlaid connectors
+9. Defensive rendering, never throw on bad data: unknown tools or kinds are skipped, missing fields use safe defaults or the call is skipped. Each case logs a console warning and emits a `renderWarning` event. One bad call never stops the lesson
 10. KaTeX with `trust: false` and `throwOnError: false`; on a parse error show the raw LaTeX in a monospace box
-11. The equation panel (x 500–800) is only about 300 px wide, so long equations must auto-scale or wrap to fit, and stack without overlapping
+11. Long formulas auto-scale or wrap to fit the board width
 
-**Acceptance:** Feed the sample LessonResponse JSON (section 3.2) and watch a smooth animated whiteboard lesson with all elements drawing sequentially. KaTeX equations render crisp. A malformed fixture (unknown action type, NaN coordinates, invalid LaTeX) plays to the end without crashing.
+**Acceptance:** Feed the sample LessonResponse JSON (section 3.2) and watch a smooth animated whiteboard lesson with all elements drawing sequentially. KaTeX equations render crisp. A malformed fixture (unknown tool or kind, unknown `ref`, a sentence sent as math, invalid LaTeX) plays to the end without crashing.
 
 ---
 
@@ -2310,4 +2193,4 @@ Open action items that need a person (mostly Krishna) rather than an agent. Upda
 
 ---
 
-*End of specification v2.10. This document is the single source of truth for the AIDLC pipeline. All agents reference this document. Any deviation requires updating this spec first.*
+*End of specification v2.11. This document is the single source of truth for the AIDLC pipeline. All agents reference this document. Any deviation requires updating this spec first.*

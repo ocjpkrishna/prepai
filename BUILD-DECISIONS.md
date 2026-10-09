@@ -5,7 +5,7 @@ Unattended sessions cannot ask questions, so every choice that would normally be
 ## Decisions already made
 1. **Layout.** The backend stays in `prepai/` (it is not moved to `backend/`). The frontend goes in `frontend/` at the repo root. Row 1 updates the repo-layout sentence in spec 9.1 to match.
 2. **Nightly verifier.** It lives in `generation/quality` and is built as row 9b. It calls the model named by `VERIFIER_MODEL` (Claude Fable 5.1) in production only; no test or build step calls it.
-3. **Frontend stack.** Current stable Angular from `npx @angular/cli new`, standalone components, Angular Material, Konva used directly (no `ng2-konva` wrapper), KaTeX, Playwright for E2E with the system Chromium at `/usr/bin/chromium`. Use the test runner that `ng new` generates.
+3. **Frontend stack.** Current stable Angular from `npx @angular/cli new`, standalone components, Angular Material, an SVG whiteboard with rough.js (no Konva, no canvas library; spec 3.3), KaTeX, Playwright for E2E with the system Chromium at `/usr/bin/chromium`. Use the test runner that `ng new` generates.
 4. **Tests use local databases, not Docker.** Integration tests use PostgreSQL database `prepai_test` (user `prepai`, pgvector installed) and Redis database 15, through a `test` Spring profile. Testcontainers stays in `build.gradle` but is not used in this build (no Docker on the shared VPS for tests).
 5. **Smoke test.** Row 2 replaces the generated `PrepaiApplicationTests` with a light context test on the `test` profile so `./gradlew check` does not need a real LLM key, a model download or the production database. If the local embedding model cannot load in tests, exclude its auto-configuration in the `test` profile.
 6. **No real external calls, and no Anthropic API key exists.** The Claude Pro plan does not include API access, and no API key is available. Tests and the build never call Claude, VoiceStudio, Razorpay, SMTP or Google. Each sits behind a small interface with a fake. The application starts with the dummy key from the `local` profile, and no step may ask for a real key.
@@ -19,6 +19,8 @@ Unattended sessions cannot ask questions, so every choice that would normally be
 
 ## Decisions made during the build
 (One line each: date, row, decision, reason.)
+- 2026-10-09, row 11 and the lesson contract: the whiteboard is SVG + rough.js, driven by named tools with `ref`s (spec 3.3) and a self-correcting `ok:`/`error:` validator with one repair round (3.3.1); lessons carry no pixel coordinates; one continuous board, `new_page` ignored; launch `sketch` kinds are Dudely's general set and JEE/NEET kinds come later. Dudely is a user-experience reference only (`docs/dudely-reference.md`). Reason: LLM-placed pixel coordinates produced floating, overlapping, missing diagrams.
+- 2026-10-09, fonts: handwriting font must cover Latin and Devanagari (candidate Kalam, open licence); UI font is not SF Pro (proprietary). Confirm the choice in row 11.
 
 ## Needs the user
 Collected here so nobody has to be interrupted. Review after the build.
