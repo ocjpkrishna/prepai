@@ -67,11 +67,11 @@ interface Raw {
 	dur: number;
 }
 
-export function buildScene(lesson: Lesson, measure: TextMeasurer): Scene {
+export function buildScene(lesson: Lesson, measure: TextMeasurer, narrationSeconds?: number[]): Scene {
 	const validated = validateLesson(lesson);
 	const sections = planSections(validated.steps);
 	layoutColumns(sections, validated.steps, measure);
-	const builder = new SceneBuilder(sections, validated.steps, validated.replies);
+	const builder = new SceneBuilder(sections, validated.steps, validated.replies, narrationSeconds ?? []);
 	return builder.build();
 }
 
@@ -207,7 +207,7 @@ class SceneBuilder {
 	private readonly pending: { item: ShapeItem; frame: Frame | null; reqs: LabelReq[] }[] = [];
 	private counter = 0;
 
-	constructor(private readonly sections: Section[], private readonly steps: LessonStep[], replies: ToolReply[]) {
+	constructor(private readonly sections: Section[], private readonly steps: LessonStep[], replies: ToolReply[], private readonly narration: number[]) {
 		this.replies = [...replies];
 	}
 
@@ -255,7 +255,7 @@ class SceneBuilder {
 
 	private schedule(step: LessonStep, si: number, start: number, raws: Raw[]): StepTiming {
 		const words = step.narration.split(/\s+/).filter(Boolean);
-		const narrationDur = words.length / WORDS_PER_SECOND + 0.4;
+		const narrationDur = this.narration[si] ?? words.length / WORDS_PER_SECOND + 0.4;
 		const rawTotal = raws.reduce((s, r) => s + r.dur, 0) || 1;
 		const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, (narrationDur - STEP_LEAD) / rawTotal));
 		let t = start + STEP_LEAD;

@@ -64,6 +64,23 @@ describe('whiteboard scene', () => {
 	}
 });
 
+describe('narration timing', () => {
+	it('uses the real audio length for each step when it is known', () => {
+		const lesson = MOCK_LESSONS[2];
+		const scene = buildScene(lesson, measure, [30, 40]);
+		expect(scene.steps[0].narrationDur).toBe(30);
+		expect(scene.steps[1].narrationDur).toBe(40);
+		expect(scene.steps[1].start).toBe(scene.steps[0].end);
+		expect(scene.duration).toBeGreaterThan(70);
+	});
+
+	it('falls back to an estimate when no audio length is given', () => {
+		const scene = buildScene(MOCK_LESSONS[2], measure);
+		expect(scene.steps[0].narrationDur).toBeGreaterThan(2);
+		expect(scene.steps[0].narrationDur).toBeLessThan(30);
+	});
+});
+
 describe('tool validator', () => {
 	const base: Lesson = { ...MOCK_LESSONS[2], steps: [] };
 	const withTools = (tools: Lesson['steps'][0]['tools'], narration = 'x'): Lesson => ({

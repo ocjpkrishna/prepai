@@ -3,11 +3,13 @@ import { provideRouter, withComponentInputBinding, withHashLocation } from '@ang
 import { routes } from './app.routes';
 import { LessonSource } from './core/services/lesson-source';
 import { MockLessonSource } from './core/services/mock-lesson-source';
+import { KokoroTtsEngine, TtsEngine } from './core/services/tts-engine';
 
 export const appConfig: ApplicationConfig = {
 	providers: [
 		provideBrowserGlobalErrorListeners(),
 		provideRouter(routes, withHashLocation(), withComponentInputBinding()),
 		{ provide: LessonSource, useClass: MockLessonSource },
+		{ provide: TtsEngine, useClass: KokoroTtsEngine },
 	],
 };

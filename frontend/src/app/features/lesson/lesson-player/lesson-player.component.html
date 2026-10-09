@@ -9,6 +9,13 @@
 	<div class="tools">
 		<button type="button" class="chip" [class.on]="!chalk()" (click)="chalk.set(false)">Whiteboard</button>
 		<button type="button" class="chip" [class.on]="chalk()" (click)="chalk.set(true)">Chalkboard</button>
+		@if (voices(); as vs) {
+			<select class="chip voice" aria-label="Voice" [value]="voice()" (change)="changeVoice($any($event.target).value)">
+				@for (v of vs; track v) {
+					<option [value]="v" [selected]="v === voice()">{{ v }}</option>
+				}
+			</select>
+		}
 		<button type="button" class="chip" [class.on]="sound()" (click)="toggleSound()">
 			{{ sound() ? 'Sound on' : 'Sound off' }}
 		</button>
@@ -21,7 +28,15 @@
 		<a routerLink="/" class="primary">Back to start</a>
 	</main>
 } @else if (!scene()) {
-	<main class="center"><p class="loading">Getting the board ready...</p></main>
+	<main class="center">
+		<p class="loading">
+			@if (preparing() && lesson()) {
+				Preparing the voice: {{ prepDone() }} of {{ lesson()!.steps.length }} steps...
+			} @else {
+				Getting the board ready...
+			}
+		</p>
+	</main>
 } @else {
 	<main class="stage">
 		<aside class="steps" aria-label="Lesson steps">
@@ -43,7 +58,7 @@
 				@if (!started()) {
 					<div class="start-overlay">
 						<button type="button" class="big" (click)="start()">Start lesson</button>
-						<p>{{ lesson()!.steps.length }} steps · about {{ (scene()!.duration / 60).toFixed(1) }} min</p>
+						<p>{{ lesson()!.steps.length }} steps · about {{ (scene()!.duration / 60).toFixed(1) }} min · {{ voiceLabel() }}</p>
 					</div>
 				}
 			</div>
