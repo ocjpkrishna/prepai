@@ -63,7 +63,9 @@ class LessonControllerTest {
 	void setUp() {
 		Jwt jwt = Jwt.withTokenValue("t").header("alg", "none").subject(USER_ID.toString()).build();
 		student = new JwtAuthenticationToken(jwt, AuthorityUtils.NO_AUTHORITIES);
-		mvc = MockMvcBuilders.standaloneSetup(new LessonController(lessons, extraction, history, masteryChecks))
+		mvc = MockMvcBuilders.standaloneSetup(new LessonController(lessons), new LessonExtractController(extraction),
+				new LessonHistoryController(history), new LessonFeedbackController(history),
+				new MasteryCheckController(masteryChecks))
 				.setControllerAdvice(new GlobalExceptionHandler())
 				.setCustomArgumentResolvers(
 						new AuthenticationPrincipalArgumentResolver())
@@ -108,7 +110,8 @@ class LessonControllerTest {
 
 	@Test
 	void historyPassesTheFiltersOn() throws Exception {
-		when(history.history(eq(USER_ID), any(), eq(1), eq(10))).thenReturn(new LessonHistoryPage(List.of(), 1, 10, 0, 0));
+		when(history.history(eq(USER_ID), any(), eq(1), eq(10)))
+				.thenReturn(new LessonHistoryPage(List.of(), 1, 10, 0, 0));
 
 		mvc.perform(get("/api/v1/lessons/history?page=1&size=10&subject=PHYSICS").principal(student))
 				.andExpect(status().isOk())
