@@ -11,6 +11,7 @@ import java.util.HexFormat;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -28,7 +29,16 @@ public class LessonCacheService {
 	private final LessonCacheRepository cache;
 
 	public Optional<LessonResponse> find(LessonRequest request) {
-		return cache.find(keyOf(request)).map(json -> JSON.readValue(json, LessonResponse.class));
+		return cache.find(keyOf(request)).flatMap(LessonCacheService::readLesson);
+	}
+
+	/** An entry written by an older version of the contract is a miss, not a failed request. */
+	private static Optional<LessonResponse> readLesson(String json) {
+		try {
+			return Optional.ofNullable(JSON.readValue(json, LessonResponse.class));
+		} catch (JacksonException e) {
+			return Optional.empty();
+		}
 	}
 
 	/** Stores a lesson that has passed validation. Callers must never store anything else. */

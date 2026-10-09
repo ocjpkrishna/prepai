@@ -2,6 +2,7 @@ package com.ascorp.prepai.generation.rag.service;
 
 import com.ascorp.prepai.generation.embedding.service.EmbeddingService;
 import com.ascorp.prepai.generation.rag.model.ProblemProbe;
+import java.util.Locale;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -17,7 +18,9 @@ public class ProblemProbeService {
 
 	/** Empty when the signature is too long to store, so the problem is never cached. */
 	public Optional<ProblemProbe> probe(String problemText) {
-		String text = normalizer.normalize(problemText);
-		return signatures.signatureOf(text).map(signature -> new ProblemProbe(text, signature, embedder.embed(text)));
+		String canonical = normalizer.withCanonicalUnits(problemText);
+		String text = canonical.toLowerCase(Locale.ROOT);
+		return signatures.signatureOf(canonical)
+				.map(signature -> new ProblemProbe(text, signature, embedder.embed(text)));
 	}
 }

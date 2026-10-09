@@ -40,6 +40,13 @@ class LessonCacheServiceTest {
 	}
 
 	@Test
+	void findTreatsAnUnreadableEntryAsAMiss() {
+		when(cache.find(anyString())).thenReturn(Optional.of("{\"lessonId\": not json"));
+
+		assertThat(lessons.find(problem("A block slides on a rough plane"))).isEmpty();
+	}
+
+	@Test
 	void findReturnsTheLessonStoredForAnIdenticalRequest() {
 		LessonResponse lesson = ValidLessons.valid();
 		ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);

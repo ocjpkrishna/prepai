@@ -1,6 +1,7 @@
 package com.ascorp.prepai.generation.llm.service;
 
 import com.ascorp.prepai.common.model.lesson.LessonResponse;
+import com.ascorp.prepai.generation.llm.prompt.ProblemTags;
 import com.ascorp.prepai.generation.llm.model.LlmProviderException;
 import com.ascorp.prepai.generation.llm.model.RetryReason;
 import com.ascorp.prepai.generation.quality.model.VerifierGrade;
@@ -28,7 +29,7 @@ final class VerifierExchange {
 	}
 
 	static Prompt prompt(String model, String problemText, LessonResponse lesson) {
-		String problem = problemText.replace(PROBLEM_CLOSE, "");
+		String problem = ProblemTags.strip(problemText);
 		String user = "<problem>\n" + problem + "\n" + PROBLEM_CLOSE
 				+ "\n\nLESSON:\n" + JSON.writeValueAsString(lesson);
 		AnthropicChatOptions options = AnthropicChatOptions.builder()

@@ -23,6 +23,9 @@ final class ExtractionReplyParser {
 	}
 
 	private static String jsonObject(String reply) {
+		if (reply == null) {
+			return "";
+		}
 		int start = reply.indexOf('{');
 		int end = reply.lastIndexOf('}');
 		return start < 0 || end < start ? "" : reply.substring(start, end + 1);

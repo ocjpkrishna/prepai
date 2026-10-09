@@ -18,9 +18,13 @@ public class NumericSignatureService {
 	static final int MAX_LENGTH = 500;
 
 	private static final Pattern NUMBER_WITH_UNIT = Pattern.compile(
-			"([\\^+-]*\\d+(?:\\.\\d+)?)([a-z°]+(?:/[a-z0-9]+)?(?:\\^[-+]?\\d+)?)?");
+			"([\\^+-]*\\d+(?:\\.\\d+)?)"
+					+ "([a-zA-Z°]+(?:/[a-zA-Z0-9]+)?(?:\\^[-+]?\\d+)?)?");
 
-	/** Takes normalised text (see {@link TextNormalizer}). Empty when the signature is too long to store. */
+	/**
+	 * Takes text with its case kept (see {@link TextNormalizer#withCanonicalUnits}). Empty when the signature is too
+	 * long to store.
+	 */
 	public Optional<String> signatureOf(String normalizedText) {
 		String signature = numbersWithUnits(normalizedText).collect(Collectors.joining("|"));
 		return signature.length() <= MAX_LENGTH ? Optional.of(signature) : Optional.empty();

@@ -22,6 +22,7 @@ generation/
 │   │                 production only), LlmCaller (circuit breaker), GenerationRetryService (2 attempts, repair
 │   │                 prompt, pause), LlmMetrics
 │   ├── prompt/       PromptTemplateService     system and user prompts (spec 6.1, 6.2), from resources/prompts
+│   │                 ProblemTags               strips every form of the <problem> tag from untrusted text
 │   └── model/        LessonGenerationResult, GenerationMetadata, GenerationRun, LlmPrompt (optional photo),
 │                     LlmImage, LlmPurpose, LlmCompletion, LlmProviderException, RetryReason, LlmProperties (`prepai.llm.*`)
 ├── validation/
@@ -81,6 +82,8 @@ generation/
 - RAG serves only `verified = true` rows with an identical numeric signature (`5 m/s` and `25 m/s` never match). The lookup reads the top 3 candidates of the same subject with cosine similarity ≥ `prepai.rag.min-similarity`.
 - Served RAG and cached lessons keep the `lessonId` they were first given. The caller (`lesson`) must assign a new id before saving the student's lesson.
 - Only validated lessons may reach `RagService.store` or `LessonCacheService.put`; nothing is stored before `LessonValidator` passes it.
+- The numeric signature is built from NFKC text with the case kept (a real minus sign, superscript and full-width digits are read; `5 mW` and `5 MW` differ). Only the stored text and the embedding are lowercased.
+- An unreadable `lesson:cache` entry is a miss, never a failed request. A provider reply with no answer is a `PROVIDER_ERROR`.
 - Problem text is normalised before storage and lookup: emails and Indian mobile numbers become `[email]` and `[phone]`, and units after a number are canonicalised. The stored `problem_text` is that normalised text, not the student's original wording.
 - A signature longer than 500 characters (the column size) is not cached at all: lookup misses and store does nothing.
 - The exact-match key hashes the whole request as JSON (type, subject, exam, difficulty, language, text, image), so two requests share a key only when they are identical.
