@@ -65,6 +65,11 @@ class ImageExtractionServiceTest {
 	}
 
 	@Test
+	void refusesAReplyWithNoText() {
+		assertUnreadable(new ScriptedReader(null));
+	}
+
+	@Test
 	void mapsAProviderFailureToLlmUnavailable() {
 		ScriptedReader reader = new ScriptedReader(
 				new LlmProviderException(RetryReason.TIMEOUT, new SocketTimeoutException()));

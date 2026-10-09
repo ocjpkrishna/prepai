@@ -76,6 +76,15 @@ class ClaudeProviderTest {
 	}
 
 	@Test
+	void mapsAReplyWithNoAnswerToProviderError() {
+		ChatResponse empty = mock(ChatResponse.class);
+		when(empty.getResult()).thenReturn(null);
+		when(chatModel.call(any(Prompt.class))).thenReturn(empty);
+
+		assertReason(RetryReason.PROVIDER_ERROR);
+	}
+
+	@Test
 	void mapsAConnectionFailureToProviderError() {
 		when(chatModel.call(any(Prompt.class))).thenThrow(
 				new ResourceAccessException("connection refused", new ConnectException()));
