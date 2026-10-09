@@ -1,0 +1,16 @@
+[Unit]
+Description=PrepAI local text-to-speech (Kokoro)
+After=network.target
+
+[Service]
+WorkingDirectory=/root/prepai/ops/tts-kokoro
+Environment=KOKORO_MODEL_DIR=/root/kokoro/models
+Environment=TTS_CACHE_DIR=/root/kokoro/cache
+Environment=OMP_NUM_THREADS=2
+ExecStart=/root/kokoro/bin/uvicorn server:app --host 127.0.0.1 --port 5051
+Nice=15
+MemoryMax=2G
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
