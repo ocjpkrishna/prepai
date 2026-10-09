@@ -1,0 +1,281 @@
+import { Lesson } from '../models/whiteboard.model';
+
+const projectileAngled: Lesson = {
+	lessonId: 'mock-projectile-angled',
+	title: 'Projectile Motion: Angled Launch',
+	subject: 'PHYSICS',
+	topic: 'Kinematics',
+	difficulty: 'MEDIUM',
+	plan: [
+		{ id: 'c1', label: 'Resolve the velocity' },
+		{ id: 'c2', label: 'Time of flight' },
+		{ id: 'c3', label: 'Maximum height' },
+		{ id: 'c4', label: 'Horizontal range' },
+	],
+	steps: [
+		{
+			stepNumber: 1,
+			title: 'Resolve velocity into components',
+			narration: 'First, we break the initial velocity into horizontal and vertical components. The horizontal component is u times cos theta, and the vertical component is u times sin theta.',
+			tools: [
+				{ tool: 'begin_concept', id: 'c1' },
+				{ tool: 'sketch', ref: 'ax', kind: 'axes', params: { xLabel: 'Horizontal', yLabel: 'Vertical' } },
+				{ tool: 'sketch', ref: 'u', kind: 'arrow', params: { angle: 60, length: 200, label: 'u = 20 m/s', color: 'blue' } },
+				{ tool: 'sketch', ref: 'ux', kind: 'line', params: { along: 'x', label: 'uₓ = 10 m/s', color: 'red' } },
+				{ tool: 'sketch', ref: 'uy', kind: 'line', params: { along: 'y', label: 'uᵧ = 10√3 m/s', color: 'green' } },
+				{ tool: 'write', ref: 'e1', kind: 'math', content: 'u_x = u \\cos 60^\\circ = 20 \\times 0.5 = 10 \\text{ m/s}' },
+				{ tool: 'write', ref: 'e2', kind: 'math', content: 'u_y = u \\sin 60^\\circ = 20 \\times \\frac{\\sqrt{3}}{2} = 10\\sqrt{3} \\text{ m/s}' },
+				{ tool: 'emphasize', target: 'e2', color: 'yellow' },
+			],
+		},
+		{
+			stepNumber: 2,
+			title: 'Calculate the time of flight',
+			narration: 'The time of flight is the total time the particle stays in the air. Since it returns to the same height, we use T equals 2 u sub y divided by g.',
+			tools: [
+				{ tool: 'begin_concept', id: 'c2' },
+				{ tool: 'sketch', ref: 'path', kind: 'parabola', params: { from: 'ax.origin', to: 'ax.x', color: 'blue' } },
+				{ tool: 'sketch', ref: 'T', kind: 'bracket', params: { spans: 'path', side: 'below', label: 'T = 2√3 s', color: 'orange' } },
+				{ tool: 'write', ref: 'e3', kind: 'math', content: 'T = \\frac{2u_y}{g} = \\frac{2 \\times 10\\sqrt{3}}{10} = 2\\sqrt{3} \\approx 3.46 \\text{ s}' },
+				{ tool: 'emphasize', target: 'e3', color: 'yellow' },
+			],
+		},
+		{
+			stepNumber: 3,
+			title: 'Calculate the maximum height',
+			narration: 'At the highest point, the vertical velocity becomes zero. Using v squared equals u squared minus 2 g H, we can find the maximum height.',
+			tools: [
+				{ tool: 'begin_concept', id: 'c3' },
+				{ tool: 'sketch', ref: 'H', kind: 'line', params: { from: 'path.peak', dropTo: 'ax', label: 'H = 15 m', color: 'purple' } },
+				{ tool: 'sketch', ref: 'top', kind: 'circle', params: { at: 'path.peak', label: 'vᵧ = 0', color: 'red' } },
+				{ tool: 'write', ref: 'e4', kind: 'math', content: 'H = \\frac{u_y^2}{2g} = \\frac{(10\\sqrt{3})^2}{20} = \\frac{300}{20} = 15 \\text{ m}' },
+				{ tool: 'emphasize', target: 'e4', color: 'yellow' },
+			],
+		},
+		{
+			stepNumber: 4,
+			title: 'Calculate the horizontal range',
+			narration: 'The horizontal range is the horizontal velocity multiplied by the total time of flight. We can also verify this with the range formula.',
+			tools: [
+				{ tool: 'begin_concept', id: 'c4' },
+				{ tool: 'sketch', ref: 'R', kind: 'bracket', params: { spans: 'ax.origin:ax.x', side: 'below', label: 'R = 20√3 ≈ 34.64 m', color: 'green' } },
+				{ tool: 'write', ref: 'e5', kind: 'math', content: 'R = u_x \\times T = 10 \\times 2\\sqrt{3} = 20\\sqrt{3} \\approx 34.64 \\text{ m}' },
+				{ tool: 'write', ref: 'e6', kind: 'math', content: '\\text{Verify: } R = \\frac{u^2 \\sin 2\\theta}{g} = \\frac{400 \\times \\sin 120^\\circ}{10} = 20\\sqrt{3}' },
+				{ tool: 'write', ref: 't1', kind: 'text', content: 'Both methods agree.' },
+			],
+		},
+	],
+	summary: {
+		narration: 'For a projectile launched at 60 degrees with 20 metres per second, the time of flight is 2 root 3 seconds, the maximum height is 15 metres, and the range is 20 root 3 metres.',
+		keyResults: [
+			{ label: 'Time of flight', value: '2√3 ≈ 3.46 s' },
+			{ label: 'Maximum height', value: '15 m' },
+			{ label: 'Horizontal range', value: '20√3 ≈ 34.64 m' },
+		],
+	},
+	masteryCheck: {
+		question: 'If the same particle were launched at 30° with the same speed, what happens to the range?',
+		options: [
+			{ id: 'A', text: 'The range increases', correct: false },
+			{ id: 'B', text: 'The range stays the same', correct: true },
+			{ id: 'C', text: 'The range decreases', correct: false },
+			{ id: 'D', text: 'It cannot be determined', correct: false },
+		],
+		explanation: 'Complementary angles (30° and 60°) give the same range, because sin 60° = sin 120°.',
+	},
+};
+
+const horizontalProjection: Lesson = {
+	lessonId: 'mock-horizontal-projection',
+	title: 'Horizontal Projection from a Building',
+	subject: 'PHYSICS',
+	topic: 'Kinematics',
+	difficulty: 'EASY',
+	plan: [
+		{ id: 'c1', label: 'Set up the problem' },
+		{ id: 'c2', label: 'Time of fall' },
+		{ id: 'c3', label: 'Range' },
+		{ id: 'c4', label: 'Common mistake' },
+	],
+	steps: [
+		{
+			stepNumber: 1,
+			title: 'Set up the problem',
+			narration: 'A ball is thrown horizontally at 10 metres per second from the top of an 80 metre building. We want the time to hit the ground and how far it lands from the base.',
+			tools: [
+				{ tool: 'begin_concept', id: 'c1' },
+				{ tool: 'sketch', ref: 'g', kind: 'line', params: { ground: true, color: 'ink' } },
+				{ tool: 'sketch', ref: 'b', kind: 'box', params: { on: 'g', width: 90, height: 170, label: 'Building', color: 'ink' } },
+				{ tool: 'sketch', ref: 'h', kind: 'bracket', params: { spans: 'b', side: 'left', label: 'h = 80 m', color: 'purple' } },
+				{ tool: 'sketch', ref: 'ball', kind: 'circle', params: { at: 'b.topRight', color: 'red', size: 9 } },
+				{ tool: 'sketch', ref: 'v', kind: 'arrow', params: { from: 'ball', angle: 0, length: 110, label: 'u = 10 m/s', color: 'blue' } },
+				{ tool: 'write', ref: 'q', kind: 'text', content: 'Find the time of fall and the horizontal range. Take g = 10 m/s².' },
+			],
+		},
+		{
+			stepNumber: 2,
+			title: 'Find the time of fall',
+			narration: 'Time is found from the vertical motion alone, because horizontal and vertical motions are independent. The vertical starting speed is zero, so h equals half g t squared, which gives t equals 4 seconds.',
+			tools: [
+				{ tool: 'begin_concept', id: 'c2' },
+				{ tool: 'write', ref: 'f1', kind: 'math', content: 'h = u_y t + \\tfrac{1}{2} g t^2' },
+				{ tool: 'write', ref: 'f2', kind: 'math', content: '80 = \\tfrac{1}{2}(10)\\,t^2' },
+				{ tool: 'write', ref: 'f3', kind: 'math', content: 't^2 = 16' },
+				{ tool: 'write', ref: 'f4', kind: 'math', content: 't = 4\\text{ s}', color: 'green' },
+				{ tool: 'emphasize', target: 'f4', color: 'yellow' },
+			],
+		},
+		{
+			stepNumber: 3,
+			title: 'Trace the path and find the range',
+			narration: 'Now follow the ball. It lands after 4 seconds, moving 10 metres every second sideways, so the range is 40 metres.',
+			tools: [
+				{ tool: 'begin_concept', id: 'c3' },
+				{ tool: 'sketch', ref: 'path', kind: 'parabola', params: { from: 'b.topRight', to: 'g@0.8', launch: 'horizontal', color: 'blue' } },
+				{ tool: 'sketch', ref: 'R', kind: 'bracket', params: { spans: 'b.bottomRight:path.end', side: 'below', label: 'R = 40 m', color: 'green' } },
+				{ tool: 'write', ref: 'f5', kind: 'math', content: 'R = u\\,t = 10 \\times 4 = 40\\text{ m}', color: 'green' },
+				{ tool: 'emphasize', target: 'f5', color: 'yellow' },
+			],
+		},
+		{
+			stepNumber: 4,
+			title: 'Common mistake to avoid',
+			narration: 'A common mistake is to find the time using the horizontal speed, writing 80 equals 10 t. That is wrong, because the 80 metre height is covered by vertical motion, not horizontal motion.',
+			tools: [
+				{ tool: 'begin_concept', id: 'c4' },
+				{ tool: 'write', ref: 'w1', kind: 'math', content: '\\text{Wrong: } 80 = 10t \\Rightarrow t = 8\\text{ s}', color: 'red' },
+				{ tool: 'write', ref: 'w2', kind: 'math', content: '\\text{Right: } 80 = \\tfrac{1}{2}(10)t^2 \\Rightarrow t = 4\\text{ s}', color: 'green' },
+				{ tool: 'write', ref: 'w3', kind: 'text', content: 'The height is covered by vertical motion. Use the vertical component to find the time.' },
+			],
+		},
+	],
+	summary: {
+		narration: 'The ball takes 4 seconds to fall 80 metres and lands 40 metres from the base.',
+		keyResults: [
+			{ label: 'Time of fall', value: '4 s' },
+			{ label: 'Range', value: '40 m' },
+			{ label: 'Landing speed', value: '10√17 ≈ 41.2 m/s' },
+		],
+	},
+	masteryCheck: {
+		question: 'If the ball were thrown at 20 m/s from the same building, the time of fall would be:',
+		options: [
+			{ id: 'A', text: '2 s', correct: false },
+			{ id: 'B', text: '4 s', correct: true },
+			{ id: 'C', text: '8 s', correct: false },
+			{ id: 'D', text: '16 s', correct: false },
+		],
+		explanation: 'Time depends only on the height and g, not on the horizontal speed.',
+	},
+};
+
+const pythagoras: Lesson = {
+	lessonId: 'mock-pythagoras',
+	title: 'Pythagoras Theorem',
+	subject: 'MATHEMATICS',
+	topic: 'Triangles',
+	difficulty: 'EASY',
+	plan: [{ id: 'c1', label: 'Draw the triangle' }, { id: 'c2', label: 'Apply the theorem' }],
+	steps: [
+		{
+			stepNumber: 1,
+			title: 'Draw the right triangle',
+			narration: 'A right triangle has legs of 6 centimetres and 8 centimetres. We need the hypotenuse, the side opposite the right angle.',
+			tools: [
+				{ tool: 'begin_concept', id: 'c1' },
+				{ tool: 'sketch', ref: 'tri', kind: 'right_triangle', params: { size: 200, sides: ['8 cm', 'c = ?', '6 cm'], color: 'blue' } },
+				{ tool: 'write', ref: 'rule', kind: 'text', content: 'In a right triangle, the square of the hypotenuse equals the sum of the squares of the other two sides.' },
+			],
+		},
+		{
+			stepNumber: 2,
+			title: 'Apply the theorem',
+			narration: 'Add the squares of the two legs: 36 plus 64 is 100. The hypotenuse is the square root of 100, which is 10 centimetres.',
+			tools: [
+				{ tool: 'begin_concept', id: 'c2' },
+				{ tool: 'write', ref: 'p1', kind: 'math', content: 'c^2 = 6^2 + 8^2' },
+				{ tool: 'write', ref: 'p2', kind: 'math', content: 'c^2 = 36 + 64 = 100' },
+				{ tool: 'write', ref: 'p3', kind: 'math', content: 'c = \\sqrt{100} = 10\\text{ cm}', color: 'green' },
+				{ tool: 'emphasize', target: 'p3', color: 'yellow' },
+			],
+		},
+	],
+	summary: {
+		narration: 'The hypotenuse is 10 centimetres.',
+		keyResults: [{ label: 'Hypotenuse', value: '10 cm' }],
+	},
+	masteryCheck: {
+		question: 'A right triangle has legs 5 and 12. The hypotenuse is:',
+		options: [
+			{ id: 'A', text: '11', correct: false },
+			{ id: 'B', text: '13', correct: true },
+			{ id: 'C', text: '17', correct: false },
+			{ id: 'D', text: '60', correct: false },
+		],
+		explanation: '5² + 12² = 25 + 144 = 169 = 13².',
+	},
+};
+
+const photosynthesis: Lesson = {
+	lessonId: 'mock-photosynthesis',
+	title: 'Photosynthesis in Five Steps',
+	subject: 'BIOLOGY',
+	topic: 'Plant physiology',
+	difficulty: 'EASY',
+	plan: [{ id: 'c1', label: 'The flow' }, { id: 'c2', label: 'The equation' }],
+	steps: [
+		{
+			stepNumber: 1,
+			title: 'How the process flows',
+			narration: 'Sunlight is absorbed by chlorophyll. The light reaction makes energy carriers, the Calvin cycle uses them, and the plant ends up with glucose.',
+			tools: [
+				{ tool: 'begin_concept', id: 'c1' },
+				{
+					tool: 'diagram', ref: 'flow', kind: 'flow',
+					nodes: [
+						{ id: 'sun', label: 'Sunlight' }, { id: 'chl', label: 'Chlorophyll' }, { id: 'lr', label: 'Light reaction' },
+						{ id: 'cc', label: 'Calvin cycle' }, { id: 'glu', label: 'Glucose' },
+					],
+				},
+				{ tool: 'write', ref: 'n1', kind: 'text', content: 'Light reaction: in the thylakoids. Calvin cycle: in the stroma.' },
+			],
+		},
+		{
+			stepNumber: 2,
+			title: 'The overall equation',
+			narration: 'Overall, six carbon dioxide and six water, with light, make one glucose and six oxygen.',
+			tools: [
+				{ tool: 'begin_concept', id: 'c2' },
+				{ tool: 'write', ref: 'eq', kind: 'math', content: '6CO_2 + 6H_2O \\xrightarrow{\\text{light}} C_6H_{12}O_6 + 6O_2' },
+				{ tool: 'emphasize', target: 'eq', color: 'yellow' },
+			],
+		},
+	],
+	summary: {
+		narration: 'Photosynthesis turns light, water and carbon dioxide into glucose and oxygen.',
+		keyResults: [{ label: 'Products', value: 'Glucose and oxygen' }],
+	},
+	masteryCheck: {
+		question: 'Where does the Calvin cycle take place?',
+		options: [
+			{ id: 'A', text: 'Thylakoid membrane', correct: false },
+			{ id: 'B', text: 'Stroma', correct: true },
+			{ id: 'C', text: 'Mitochondria', correct: false },
+			{ id: 'D', text: 'Nucleus', correct: false },
+		],
+		explanation: 'The Calvin cycle runs in the stroma of the chloroplast.',
+	},
+};
+
+export const MOCK_LESSONS: Lesson[] = [horizontalProjection, projectileAngled, pythagoras, photosynthesis];
+
+export const MOCK_KEYWORDS: Record<string, string> = {
+	building: 'mock-horizontal-projection',
+	horizontal: 'mock-horizontal-projection',
+	projectile: 'mock-projectile-angled',
+	angle: 'mock-projectile-angled',
+	pythagoras: 'mock-pythagoras',
+	triangle: 'mock-pythagoras',
+	photosynthesis: 'mock-photosynthesis',
+	plant: 'mock-photosynthesis',
+};

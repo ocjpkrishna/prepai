@@ -1,0 +1,101 @@
+<header class="top">
+	<a routerLink="/" class="brand"><span class="mark">P</span> PrepAI</a>
+	@if (lesson(); as l) {
+		<div class="meta">
+			<strong>{{ l.title }}</strong>
+			<span>{{ l.subject }} · {{ l.topic }}</span>
+		</div>
+	}
+	<div class="tools">
+		<button type="button" class="chip" [class.on]="!chalk()" (click)="chalk.set(false)">Whiteboard</button>
+		<button type="button" class="chip" [class.on]="chalk()" (click)="chalk.set(true)">Chalkboard</button>
+		<button type="button" class="chip" [class.on]="sound()" (click)="toggleSound()">
+			{{ sound() ? 'Sound on' : 'Sound off' }}
+		</button>
+	</div>
+</header>
+
+@if (missing()) {
+	<main class="center">
+		<h2>We could not find that lesson.</h2>
+		<a routerLink="/" class="primary">Back to start</a>
+	</main>
+} @else if (!scene()) {
+	<main class="center"><p class="loading">Getting the board ready...</p></main>
+} @else {
+	<main class="stage">
+		<aside class="steps" aria-label="Lesson steps">
+			<ol>
+				@for (s of lesson()!.steps; track s.stepNumber; let i = $index) {
+					<li>
+						<button type="button" [class.current]="i === stepIndex() && started()" [class.done]="i < stepIndex() && started()" (click)="seekStep(i)">
+							<span class="n">{{ s.stepNumber }}</span>
+							<span class="t">{{ s.title }}</span>
+						</button>
+					</li>
+				}
+			</ol>
+		</aside>
+
+		<section class="board-col">
+			<div class="board-wrap">
+				<app-whiteboard [scene]="scene()!" [time]="time()" [theme]="chalk() ? 'chalkboard' : 'whiteboard'" />
+				@if (!started()) {
+					<div class="start-overlay">
+						<button type="button" class="big" (click)="start()">Start lesson</button>
+						<p>{{ lesson()!.steps.length }} steps · about {{ (scene()!.duration / 60).toFixed(1) }} min</p>
+					</div>
+				}
+			</div>
+
+			<div class="caption" aria-live="polite">
+				<div class="step-line">Step {{ step()?.stepNumber }} of {{ lesson()!.steps.length }}: {{ step()?.title }}</div>
+				<p>
+					@for (w of words(); track $index) {
+						<span [class.said]="$index <= wordIndex()" [class.now]="$index === wordIndex()">{{ w }} </span>
+					}
+				</p>
+			</div>
+
+			<div class="controls">
+				<button type="button" class="ctl" (click)="seekStep(stepIndex() - 1)" aria-label="Previous step">Prev</button>
+				<button type="button" class="ctl main" (click)="toggle()">{{ playing() ? 'Pause' : finished() ? 'Replay' : 'Play' }}</button>
+				<button type="button" class="ctl" (click)="seekStep(stepIndex() + 1)" aria-label="Next step">Next</button>
+				<div class="bar" role="progressbar" [attr.aria-valuenow]="(progress() * 100).toFixed(0)" aria-valuemin="0" aria-valuemax="100">
+					<div class="fill" [style.width.%]="progress() * 100"></div>
+				</div>
+				<div class="speeds" role="group" aria-label="Speed">
+					@for (s of speeds; track s) {
+						<button type="button" [class.on]="speed() === s" (click)="setSpeed(s)">{{ s }}x</button>
+					}
+				</div>
+			</div>
+
+			@if (finished()) {
+				<section class="done-card">
+					<h3>Summary</h3>
+					<p>{{ lesson()!.summary.narration }}</p>
+					<ul class="results">
+						@for (r of lesson()!.summary.keyResults; track r.label) {
+							<li><span>{{ r.label }}</span><strong>{{ r.value }}</strong></li>
+						}
+					</ul>
+					@if (lesson()!.masteryCheck; as m) {
+						<h3>Quick check</h3>
+						<p>{{ m.question }}</p>
+						<div class="options">
+							@for (o of m.options; track o.id) {
+								<button type="button" [class.right]="picked() && o.correct" [class.wrong]="picked() === o.id && !o.correct" [disabled]="!!picked()" (click)="pick(o.id)">
+									<b>{{ o.id }}</b> {{ o.text }}
+								</button>
+							}
+						</div>
+						@if (chosen()) {
+							<p class="why">{{ chosen()!.correct ? 'Correct. ' : 'Not quite. ' }}{{ m.explanation }}</p>
+						}
+					}
+				</section>
+			}
+		</section>
+	</main>
+}

@@ -1,0 +1,48 @@
+<header class="nav">
+	<a routerLink="/" class="brand"><span class="mark">P</span> PrepAI</a>
+	<span class="demo">Demo with sample lessons</span>
+</header>
+
+<main class="home">
+	<h1>What are we learning today?</h1>
+	<p class="sub">
+		Type a problem or a topic. PrepAI draws the solution on a live whiteboard and talks you through it, step by step.
+	</p>
+
+	<div class="prompt" [class.busy]="busy()">
+		<textarea
+			rows="2"
+			placeholder="Try: a ball thrown horizontally from a building, or Pythagoras, or photosynthesis"
+			[ngModel]="prompt()"
+			(ngModelChange)="prompt.set($event)"
+			(keydown)="onKey($event)"
+			aria-label="What do you want to learn?"
+		></textarea>
+		<div class="row">
+			<span class="mode-note">Mode: {{ mode() }}</span>
+			<button type="button" class="go" [disabled]="!prompt().trim() || busy()" (click)="start()">
+				{{ busy() ? 'Preparing the board...' : 'Start' }}
+			</button>
+		</div>
+	</div>
+
+	<section class="modes" aria-label="Mode">
+		@for (m of modes; track m.id) {
+			<button type="button" class="mode" [class.on]="mode() === m.id" (click)="mode.set(m.id)">
+				<strong>{{ m.title }}</strong>
+				<span>{{ m.hint }}</span>
+			</button>
+		}
+	</section>
+
+	<h2>Sample lessons</h2>
+	<section class="samples">
+		@for (s of samples(); track s.lessonId) {
+			<a class="sample" [routerLink]="['/lesson', s.lessonId]">
+				<span class="tag">{{ s.subject }}</span>
+				<strong>{{ s.title }}</strong>
+				<span class="topic">{{ s.topic }} · {{ s.difficulty }}</span>
+			</a>
+		}
+	</section>
+</main>

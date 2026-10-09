@@ -1,0 +1,127 @@
+<div class="scroller" [attr.data-theme]="theme()" #scroller>
+	<svg
+		class="board"
+		[attr.viewBox]="'0 0 ' + scene().width + ' ' + scene().height"
+		[style.aspect-ratio]="scene().width + ' / ' + scene().height"
+		role="img"
+		aria-label="Lesson whiteboard"
+	>
+		@for (hl of highlights(); track hl.id) {
+			@if (visible(hl)) {
+				<rect
+					class="highlight"
+					rx="6"
+					[attr.x]="hl.x"
+					[attr.y]="hl.y"
+					[attr.width]="hl.w * p(hl)"
+					[attr.height]="hl.h"
+					[attr.fill]="col(hl.color)"
+					[attr.opacity]="opacity(hl) * (hl.solid ? 0.45 : 0.3)"
+				/>
+			}
+		}
+
+		@for (item of content(); track item.id) {
+			@if (visible(item)) {
+				<g [attr.opacity]="opacity(item)">
+					@if (asShape(item); as shape) {
+						@for (s of shape.strokes; track $index; let si = $index) {
+							@let sp = strokeP(shape, s);
+							@if (sp > 0) {
+								@for (path of s.paths; track $index; let pi = $index) {
+									@if (path.dash) {
+										<mask
+											maskUnits="userSpaceOnUse"
+											x="0"
+											y="0"
+											[attr.id]="'m' + shape.id + '-' + si + '-' + pi"
+											[attr.width]="scene().width"
+											[attr.height]="scene().height"
+										>
+											<path
+												[attr.d]="path.d"
+												fill="none"
+												stroke="white"
+												stroke-width="12"
+												pathLength="1"
+												stroke-dasharray="1"
+												[attr.stroke-dashoffset]="1 - sp"
+											/>
+										</mask>
+										<path
+											[attr.d]="path.d"
+											fill="none"
+											stroke-linecap="round"
+											[attr.stroke]="col(path.color)"
+											[attr.stroke-width]="path.width"
+											[attr.stroke-dasharray]="path.dash"
+											[attr.mask]="'url(#m' + shape.id + '-' + si + '-' + pi + ')'"
+										/>
+									} @else if (path.fill) {
+										<path [attr.d]="path.d" stroke="none" [attr.fill]="col(path.fill)" [attr.fill-opacity]="sp * sp" />
+									} @else {
+										<path
+											[attr.d]="path.d"
+											fill="none"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											pathLength="1"
+											stroke-dasharray="1"
+											[attr.stroke-dashoffset]="1 - sp"
+											[attr.stroke]="col(path.color)"
+											[attr.stroke-width]="path.width"
+										/>
+									}
+								}
+							}
+						}
+						@for (label of shape.labels; track $index) {
+							<text
+								class="label"
+								[attr.x]="label.x"
+								[attr.y]="label.y"
+								[attr.text-anchor]="label.anchor"
+								[style.font-size.px]="label.size"
+								[attr.fill]="col(label.color)"
+								[attr.opacity]="labelOpacity(shape)"
+							>{{ label.text }}</text>
+						}
+					}
+					@if (asText(item); as tx) {
+						<foreignObject [attr.x]="tx.x" [attr.y]="tx.y" [attr.width]="tx.w + 14" [attr.height]="tx.h + 10">
+							<div
+								class="item"
+								[class.math]="tx.type === 'math'"
+								[class.text]="tx.type === 'text'"
+								[class.heading]="tx.heading"
+								[style.font-size.px]="tx.fontSize"
+								[style.color]="col(tx.color)"
+								[style.clip-path]="reveal(tx)"
+							>
+								@if (tx.type === 'math') {
+									<span [innerHTML]="html(tx)"></span>
+								} @else {
+									{{ tx.content }}
+								}
+							</div>
+						</foreignObject>
+					}
+				</g>
+			}
+		}
+
+		@if (cursor(); as c) {
+			<g class="marker" [attr.transform]="'translate(' + c.x + ',' + c.y + ')'">
+				<g transform="rotate(32)">
+					<rect x="-6" y="-70" width="12" height="52" rx="4" class="marker-body" />
+					<rect x="-6" y="-26" width="12" height="9" class="marker-cap" />
+					<path d="M-6 -18 L6 -18 L2.5 0 L-2.5 0 Z" class="marker-tip" />
+				</g>
+				<g transform="translate(16,22)">
+					<rect x="0" y="0" width="64" height="24" rx="12" class="tag" />
+					<text x="32" y="17" text-anchor="middle" class="tag-text">Tutor</text>
+				</g>
+			</g>
+		}
+	</svg>
+</div>
