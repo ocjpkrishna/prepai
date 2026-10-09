@@ -1,0 +1,26 @@
+# Light test profile: the context starts with no PostgreSQL, Redis, embedding model download or real LLM key,
+# so ./gradlew check runs in a cloud sandbox too. Tests that need a real database are tagged "db" (see TESTING.md).
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+      - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
+      - org.springframework.ai.model.transformers.autoconfigure.TransformersEmbeddingModelAutoConfiguration
+  ai:
+    anthropic:
+      api-key: test-only-key # a dummy, never sent anywhere: the tests use the fake provider
+prepai:
+  llm:
+    provider: fake
+    retry-backoff: 0s
+  app:
+    base-url: http://localhost:4300
+    cors-allowed-origins: http://localhost:4300
+    mail-from: no-reply@localhost
+  security:
+    jwt:
+      secret: test-only-signing-secret-never-used-outside-the-test-suite # a dummy HS256 key
+    google:
+      client-id: test-only-google-client

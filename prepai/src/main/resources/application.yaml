@@ -63,7 +63,9 @@ resilience4j:
 # PrepAI settings (see spec section 10.3 for the matching environment variables)
 prepai:
   llm:
+    provider: ${LLM_PROVIDER:claude} # claude in production; fake in local and test (decision 7)
     max-attempts: ${LLM_MAX_ATTEMPTS:2}
+    retry-backoff: ${LLM_RETRY_BACKOFF:1s}
     local:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434} # dev/testing provider only
   image:

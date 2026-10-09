@@ -1,0 +1,9 @@
+Subject: {subject}
+Exam: {exam}
+Difficulty: {difficulty}
+
+<problem>
+{input_text}
+</problem>
+
+Generate a complete whiteboard lesson for this problem.
