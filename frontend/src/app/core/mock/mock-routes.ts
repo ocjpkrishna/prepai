@@ -1,6 +1,9 @@
 import { HttpRequest } from '@angular/common/http';
 import { CheckoutOrder, SubscriptionPlan } from '../models/subscription.model';
 import { ExtractResult, LessonHistoryPage, LessonResponse } from '../models/lesson-api.model';
+import { MOCK_FULL_LESSON } from './mock-lesson';
+import { mockSynthesis } from './mock-audio';
+import { SynthesizeResult, Voice } from '../models/tts.model';
 import { AuthTokens, Usage, User } from '../models/user.model';
 
 export interface MockRoute {
@@ -60,6 +63,16 @@ const CHECKOUT: CheckoutOrder = { orderId: 'order_mock_001', keyId: 'rzp_test_mo
 
 const NO_CONTENT = 204;
 
+const VOICES: Voice[] = [
+  { id: 'en-in-1', name: 'Indian English', language: 'en-IN' },
+  { id: 'en-us-1', name: 'US English', language: 'en-US' },
+];
+
+function synthesizeBody(req: HttpRequest<unknown>): SynthesizeResult {
+  const { text } = req.body as { text: string };
+  return mockSynthesis(text);
+}
+
 export const MOCK_ROUTES: MockRoute[] = [
   { method: 'POST', path: '/auth/login', body: () => TOKENS },
   { method: 'POST', path: '/auth/google', body: () => TOKENS },
@@ -75,6 +88,9 @@ export const MOCK_ROUTES: MockRoute[] = [
   { method: 'GET', path: '/lessons/history', body: () => HISTORY },
   { method: 'POST', path: '/lessons/generate', status: 201, body: () => LESSON },
   { method: 'POST', path: '/lessons/extract', body: () => EXTRACT },
+  { method: 'GET', path: '/lessons/:lessonId', body: () => MOCK_FULL_LESSON },
+  { method: 'POST', path: '/tts/synthesize', body: synthesizeBody },
+  { method: 'GET', path: '/tts/voices', body: () => VOICES },
   { method: 'GET', path: '/subscriptions/plans', body: () => PLANS },
   { method: 'POST', path: '/subscriptions/checkout', body: () => CHECKOUT },
 ];

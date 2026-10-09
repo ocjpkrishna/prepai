@@ -68,4 +68,24 @@ describe('AnimationEngineService', () => {
     nextFrame(10);
     await expect(done).rejects.toThrow('boom');
   });
+
+  it('scales the timeline by the speed', () => {
+    const onFrame = vi.fn();
+    engine.setSpeed(2);
+    void engine.run(100, onFrame, linear);
+    nextFrame(25);
+    expect(onFrame).toHaveBeenLastCalledWith(0.5);
+  });
+
+  it('freezes the timeline while paused and carries on after', () => {
+    const onFrame = vi.fn();
+    void engine.run(100, onFrame, linear);
+    nextFrame(20);
+    engine.setPaused(true);
+    nextFrame(500);
+    expect(onFrame).toHaveBeenLastCalledWith(0.2);
+    engine.setPaused(false);
+    nextFrame(530);
+    expect(onFrame).toHaveBeenLastCalledWith(0.5);
+  });
 });
