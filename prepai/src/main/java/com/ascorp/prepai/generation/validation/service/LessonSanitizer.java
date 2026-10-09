@@ -40,7 +40,9 @@ public class LessonSanitizer {
 		return cleaned;
 	}
 
+	/** Repeats until the text is stable: an entity-encoded tag (`&lt;script&gt;`) only becomes a tag after one pass. */
 	private String stripHtml(String text) {
-		return Parser.unescapeEntities(Jsoup.clean(text, Safelist.none()), false);
+		String cleaned = Parser.unescapeEntities(Jsoup.clean(text, Safelist.none()), false);
+		return cleaned.equals(text) ? cleaned : stripHtml(cleaned);
 	}
 }

@@ -26,6 +26,14 @@ class LessonSanitizerTest {
 	}
 
 	@Test
+	void stripsTagsThatArriveEntityEncoded() {
+		LessonResponse lesson = lessonWith("\"title\": \"Projectile Motion\"",
+				"\"title\": \"Motion&lt;script&gt;alert(1)&lt;/script&gt;&amp;lt;b&amp;gt;\"");
+
+		assertThat(sanitizer.sanitize(lesson).title()).isEqualTo("Motion");
+	}
+
+	@Test
 	void stripsHtmlInsideCanvasConfig() {
 		LessonResponse lesson = lessonWith("\"label\": \"u\"", "\"label\": \"<i>u</i>\"");
 
