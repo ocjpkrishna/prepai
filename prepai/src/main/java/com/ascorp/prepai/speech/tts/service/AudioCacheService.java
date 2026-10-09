@@ -57,6 +57,7 @@ public class AudioCacheService {
 			Files.write(temp, wav);
 			Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
 		} catch (IOException e) {
+			discard(temp);
 			throw unavailable(e);
 		}
 		return new AudioFile(hash, WavFormat.durationMillis(wav));
@@ -84,6 +85,14 @@ public class AudioCacheService {
 			Files.deleteIfExists(file);
 		} catch (IOException e) {
 			log.warn("Could not delete audio file {}: {}", file.getFileName(), e.getMessage());
+		}
+	}
+
+	private void discard(Path temp) {
+		try {
+			Files.deleteIfExists(temp);
+		} catch (IOException e) {
+			log.warn("Could not delete temporary audio file {}: {}", temp.getFileName(), e.getMessage());
 		}
 	}
 
