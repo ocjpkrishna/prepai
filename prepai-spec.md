@@ -286,7 +286,7 @@ LLM output is untrusted. Every response, from any provider, passes through `Less
 | Layer | Checks |
 |-------|--------|
 | Parse | Valid JSON (stray markdown fences stripped defensively) that deserializes into `LessonResponse` |
-| Structure | 3–7 steps; `stepNumber` sequential from 1; `totalSteps` equals the step count; every step has title, narration and at least one canvas action or equation; `summary.keyResults` non-empty; `masteryCheck` has exactly 4 options with exactly one correct |
+| Structure | 3–7 steps; `stepNumber` sequential from 1; `totalSteps` equals the step count; every step has title, narration and at least one whiteboard tool; `summary.keyResults` non-empty; `masteryCheck` has exactly 4 options with exactly one correct |
 | Whiteboard | Every `tool` is in the 3.3 allow-list and every `kind` is a known `sketch` or `diagram` kind; required fields are present; every `ref` that a later tool uses (`target`, `from`, `to`) was created earlier; `math` content parses as LaTeX and prose is `text`; `begin_concept` ids exist in `plan`; at most 40 tools per step. Replies follow 3.3.1 |
 | Text safety | HTML/script stripped from every string; narration contains no LaTeX or markup characters (`\ _ ^ $ { }`) because it must be speakable; narration ≤ 600 chars per step; LaTeX denylist (`\input`, `\include`, `\href`, `\url`, `\write`, `\def`, `\csname`) |
 
