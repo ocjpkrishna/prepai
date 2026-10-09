@@ -1,0 +1,19 @@
+{
+  "uid": "prepai-errors",
+  "title": "PrepAI - Errors",
+  "tags": ["prepai"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "1m",
+  "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {"id": 1, "type": "timeseries", "title": "API errors by code", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum by (code) (rate(prepai_api_errors_total[5m]))", "legendFormat": "{{code}}"}]},
+    {"id": 2, "type": "timeseries", "title": "LLM validation failures by layer", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum by (layer) (rate(prepai_llm_validation_failures_total[15m]))", "legendFormat": "{{layer}}"}]},
+    {"id": 3, "type": "timeseries", "title": "Rate-limit rejections by plan", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum by (plan) (rate(prepai_ratelimit_rejected_total[15m]))", "legendFormat": "{{plan}}"}]},
+    {"id": 4, "type": "timeseries", "title": "TTS requests by outcome", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum by (outcome) (rate(prepai_tts_requests_total[15m]))", "legendFormat": "{{outcome}}"}]}
+  ]
+}
