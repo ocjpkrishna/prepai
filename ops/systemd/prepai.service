@@ -1,0 +1,31 @@
+# PrepAI Spring Boot app (spec 10.1, 10.4, 9.2 Agent 9). Installed by scripts/install.sh.
+# scripts/deploy.sh points /opt/prepai/app.jar at the newest release and restarts this unit.
+# Secrets come only from the root-owned EnvironmentFile (mode 600), never from this file.
+[Unit]
+Description=PrepAI API (Spring Boot)
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prepai
+Group=prepai
+WorkingDirectory=/var/lib/prepai
+EnvironmentFile=/etc/prepai/prepai.env
+Environment=SPRING_PROFILES_ACTIVE=prod
+ExecStart=/usr/bin/java -jar /opt/prepai/app.jar
+# Spring stops gracefully within 30 s (spec 10.4); give systemd a little longer before SIGKILL.
+TimeoutStopSec=40
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+
+# Hardening: the app writes only to its data and log directories.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/prepai /var/log/prepai
+
+[Install]
+WantedBy=multi-user.target
