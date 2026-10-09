@@ -13,7 +13,14 @@ export const mockBackendInterceptor: HttpInterceptorFn = (req, next) => {
 
 function findRoute(req: HttpRequest<unknown>): MockRoute | undefined {
   const path = req.url.replace(environment.apiBaseUrl, '').split('?')[0];
-  return MOCK_ROUTES.find(route => route.method === req.method && route.path === path);
+  return MOCK_ROUTES.find(route => route.method === req.method && pathMatches(route.path, path));
+}
+
+/** A route segment that starts with ':' matches any single segment. */
+function pathMatches(pattern: string, path: string): boolean {
+  const wanted = pattern.split('/');
+  const actual = path.split('/');
+  return wanted.length === actual.length && wanted.every((part, i) => part.startsWith(':') || part === actual[i]);
 }
 
 function respond(route: MockRoute, req: HttpRequest<unknown>): Observable<HttpResponse<unknown>> {
