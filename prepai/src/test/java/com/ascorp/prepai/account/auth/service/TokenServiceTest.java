@@ -73,13 +73,13 @@ class TokenServiceTest {
 	void rotateRevokesTheUsedTokenAndIssuesANewOneInTheSameFamily() {
 		RefreshToken used = storedToken(FAMILY, null, NOW.plus(Duration.ofDays(1)));
 		givenStored(used);
+		when(refreshTokens.revokeIfActive(NEW_ID, NOW)).thenReturn(1);
 		when(accessTokens.encode(USER)).thenReturn(ACCESS);
 
 		TokenResponse response = tokenService.rotate(RAW_REFRESH);
 
 		ArgumentCaptor<RefreshToken> issued = ArgumentCaptor.forClass(RefreshToken.class);
 		verify(refreshTokens).save(issued.capture());
-		assertThat(used.isRevoked()).isTrue();
 		assertThat(issued.getValue().getFamilyId()).isEqualTo(FAMILY);
 		assertThat(response.refreshToken()).isNotEqualTo(RAW_REFRESH);
 	}
@@ -92,6 +92,16 @@ class TokenServiceTest {
 				.isInstanceOfSatisfying(ApiException.class,
 						exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.UNAUTHENTICATED));
 		verify(refreshTokens).revokeFamily(FAMILY, NOW);
+	}
+
+	@Test
+	void rotateRejectsATokenThatAParallelRequestAlreadyRotated() {
+		givenStored(storedToken(FAMILY, null, NOW.plus(Duration.ofDays(1))));
+		when(refreshTokens.revokeIfActive(NEW_ID, NOW)).thenReturn(0);
+
+		assertThatThrownBy(() -> tokenService.rotate(RAW_REFRESH)).isInstanceOf(ApiException.class);
+		verify(refreshTokens).revokeFamily(FAMILY, NOW);
+		verify(refreshTokens, never()).save(any());
 	}
 
 	@Test
