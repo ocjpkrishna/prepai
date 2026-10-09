@@ -10,6 +10,7 @@ import com.ascorp.prepai.account.user.model.dto.UserProfileResponse;
 import com.ascorp.prepai.common.errors.ApiException;
 import com.ascorp.prepai.common.errors.ErrorCode;
 import com.ascorp.prepai.common.model.enums.Plan;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -51,6 +52,12 @@ public class UserService {
 	@Transactional(readOnly = true)
 	public Plan currentPlan(UUID userId) {
 		return findUser(userId).getPlan();
+	}
+
+	/** Called by billing when a payment starts, renews or ends a plan. */
+	@Transactional
+	public void changePlan(UUID userId, Plan plan, Instant expiresAt) {
+		findUser(userId).changePlan(plan, expiresAt);
 	}
 
 	public void requestDeletion(UUID userId) {

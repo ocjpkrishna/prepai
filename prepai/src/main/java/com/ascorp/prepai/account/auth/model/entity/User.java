@@ -45,6 +45,8 @@ public class User {
 	@Column(nullable = false)
 	private Plan plan;
 
+	private Instant planExpiresAt;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private Language language;
@@ -116,6 +118,12 @@ public class User {
 		this.googleId = null;
 		this.guardianEmail = null;
 		this.purgedAt = now;
+	}
+
+	/** A paid plan runs until {@code expiresAt}; the free plan has no end date. */
+	public void changePlan(Plan newPlan, Instant expiresAt) {
+		this.plan = newPlan;
+		this.planExpiresAt = expiresAt;
 	}
 
 	public boolean isDeletionRequested() {
