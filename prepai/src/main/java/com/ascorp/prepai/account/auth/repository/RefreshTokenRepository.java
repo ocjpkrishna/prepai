@@ -13,6 +13,11 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
 	Optional<RefreshToken> findByTokenHash(String tokenHash);
 
+	/** Revokes one token only if it is still active; 0 means a parallel request already used it. */
+	@Modifying
+	@Query("update RefreshToken t set t.revokedAt = :now where t.id = :id and t.revokedAt is null")
+	int revokeIfActive(@Param("id") UUID id, @Param("now") Instant now);
+
 	@Modifying
 	@Query("update RefreshToken t set t.revokedAt = :now where t.familyId = :familyId and t.revokedAt is null")
 	int revokeFamily(@Param("familyId") UUID familyId, @Param("now") Instant now);
