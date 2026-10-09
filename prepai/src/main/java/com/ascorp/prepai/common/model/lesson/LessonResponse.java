@@ -19,6 +19,12 @@ public record LessonResponse(
 		Summary summary,
 		MasteryCheck masteryCheck) {
 
+	/** The same lesson under another id: each student who is served a cached lesson gets a lesson of their own. */
+	public LessonResponse withLessonId(UUID id) {
+		return new LessonResponse(id, title, subject, topic, difficulty, totalSteps, estimatedDurationSeconds, steps,
+				summary, masteryCheck);
+	}
+
 	/** One step of the whiteboard walkthrough: what is drawn, what is written and what is said. */
 	public record Step(int stepNumber, String title, String narration, Canvas canvas, List<Equation> equations) {
 	}

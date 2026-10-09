@@ -38,4 +38,19 @@ class GlobalExceptionHandlerTest {
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 		assertThat(response.getBody().error().code()).isEqualTo(ErrorCode.VALIDATION_FAILED);
 	}
+
+	@Test
+	void anOversizedUploadIsImageTooLarge() {
+		ResponseEntity<ApiErrorResponse> response = handler.handleUploadTooLarge();
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONTENT_TOO_LARGE);
+		assertThat(response.getBody().error().code()).isEqualTo(ErrorCode.IMAGE_TOO_LARGE);
+	}
+
+	@Test
+	void aMissingPartOrABadQueryValueIsAValidationFailure() {
+		ResponseEntity<ApiErrorResponse> response = handler.handleBadRequestParts();
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+	}
 }

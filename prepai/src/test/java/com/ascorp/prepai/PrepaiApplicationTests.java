@@ -9,6 +9,7 @@ import com.ascorp.prepai.account.auth.repository.VerificationTokenRepository;
 import com.ascorp.prepai.common.redis.RedisCounter;
 import com.ascorp.prepai.generation.cache.repository.LessonCacheRepository;
 import com.ascorp.prepai.generation.rag.repository.ProblemEmbeddingRepository;
+import com.ascorp.prepai.lesson.lesson.repository.LessonRepository;
 import com.ascorp.prepai.quota.usage.repository.UsageLogRepository;
 import java.time.Clock;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,9 @@ class PrepaiApplicationTests {
 
 	@MockitoBean
 	UsageLogRepository usageLogs;
+
+	@MockitoBean
+	LessonRepository lessonRepository;
 
 	@MockitoBean
 	EmbeddingModel embeddingModel;
