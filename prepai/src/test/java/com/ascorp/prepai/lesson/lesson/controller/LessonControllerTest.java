@@ -24,6 +24,7 @@ import com.ascorp.prepai.lesson.lesson.service.LessonHistoryService;
 import com.ascorp.prepai.lesson.lesson.service.LessonService;
 import com.ascorp.prepai.lesson.lesson.service.MasteryCheckService;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +32,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
@@ -63,11 +65,17 @@ class LessonControllerTest {
 	void setUp() {
 		Jwt jwt = Jwt.withTokenValue("t").header("alg", "none").subject(USER_ID.toString()).build();
 		student = new JwtAuthenticationToken(jwt, AuthorityUtils.NO_AUTHORITIES);
+		SecurityContextHolder.getContext().setAuthentication(student);
 		mvc = MockMvcBuilders.standaloneSetup(new LessonController(lessons, extraction, history, masteryChecks))
 				.setControllerAdvice(new GlobalExceptionHandler())
 				.setCustomArgumentResolvers(
 						new AuthenticationPrincipalArgumentResolver())
 				.build();
+	}
+
+	@AfterEach
+	void clearSecurityContext() {
+		SecurityContextHolder.clearContext();
 	}
 
 	@Test
