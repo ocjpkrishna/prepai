@@ -13,7 +13,8 @@
 lesson/
 ├── MODULE.md
 └── lesson/
-    ├── controller/   LessonController      generate, get, history, feedback, mastery-check, extract
+    ├── controller/   LessonController (generate), LessonExtractController, LessonHistoryController (history, get),
+    │                 LessonFeedbackController, LessonMasteryController   (split to stay under the fan-out limit)
     ├── service/      LessonService (orchestration), LessonHistoryService, MasteryCheckService
     ├── repository/   LessonRepository
     ├── model/entity/ Lesson

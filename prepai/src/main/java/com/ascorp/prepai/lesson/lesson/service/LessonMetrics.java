@@ -6,7 +6,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** The lesson counter of spec 8.4, exported as `prepai_lesson_generated_total`. Its cache hit rate comes from `source`. */
+/** The lesson counter of spec 8.4 (`prepai_lesson_generated_total`); its cache hit rate comes from `source`. */
 @Component
 @RequiredArgsConstructor
 public class LessonMetrics {

@@ -54,7 +54,8 @@ class LessonInputResolverTest {
 		String encoded = Base64.getEncoder().encodeToString(PHOTO);
 		when(extraction.extract(PHOTO)).thenReturn(new ExtractedProblem("Find x.", Confidence.HIGH, false));
 
-		LessonRequest resolved = resolver.resolve(USER_ID, LessonFixtures.request(LessonRequest.Type.IMAGE, null, encoded));
+		LessonRequest image = LessonFixtures.request(LessonRequest.Type.IMAGE, null, encoded);
+		LessonRequest resolved = resolver.resolve(USER_ID, image);
 
 		assertThat(resolved.type()).isEqualTo(LessonRequest.Type.PROBLEM);
 		assertThat(resolved.input().text()).isEqualTo("Find x.");
