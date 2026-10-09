@@ -14,6 +14,7 @@ import com.ascorp.prepai.common.errors.TraceIdFilter;
 import com.ascorp.prepai.common.redis.RedisCounter;
 import com.ascorp.prepai.generation.cache.repository.LessonCacheRepository;
 import com.ascorp.prepai.generation.rag.repository.ProblemEmbeddingRepository;
+import com.ascorp.prepai.lesson.lesson.repository.LessonRepository;
 import com.ascorp.prepai.quota.usage.repository.UsageLogRepository;
 import jakarta.servlet.Filter;
 import java.time.Instant;
@@ -65,6 +66,9 @@ class AuthSecurityTest {
 
 	@MockitoBean
 	private UsageLogRepository usageLogs;
+
+	@MockitoBean
+	private LessonRepository lessons;
 
 	@MockitoBean
 	private EmbeddingModel embeddingModel;
