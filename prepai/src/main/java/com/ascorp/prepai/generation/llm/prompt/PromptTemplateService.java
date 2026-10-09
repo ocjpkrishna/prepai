@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Objects;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -19,8 +18,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class PromptTemplateService {
 
-	private static final String PROBLEM_OPEN = "<problem>";
-	private static final String PROBLEM_CLOSE = "</problem>";
 	private static final String REPAIR_NOTE = "\n\nYour previous answer failed these checks. "
 			+ "Return the complete corrected JSON only, fixing every point:";
 
@@ -52,7 +49,7 @@ public class PromptTemplateService {
 	}
 
 	private static String problemText(LessonRequest request) {
-		return Objects.toString(request.input().text(), "").replace(PROBLEM_OPEN, "").replace(PROBLEM_CLOSE, "");
+		return ProblemTags.strip(request.input().text());
 	}
 
 	private static String repairNote(List<ValidationError> errors) {
