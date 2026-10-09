@@ -4,6 +4,7 @@ import static com.ascorp.prepai.lesson.lesson.service.LessonFixtures.USER_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -64,7 +65,7 @@ class LessonServiceTest {
 	void setUp() {
 		service = new LessonService(accountGate, rateLimiter, inputs, producer, storage, usage, metrics, audioWarmup);
 		release = mock(Runnable.class);
-		when(rateLimiter.reserveSession(USER_ID)).thenReturn(new SessionReservation(release));
+		lenient().when(rateLimiter.reserveSession(USER_ID)).thenReturn(new SessionReservation(release));
 	}
 
 	@Test
