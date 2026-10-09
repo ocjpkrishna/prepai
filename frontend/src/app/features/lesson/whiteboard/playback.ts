@@ -35,7 +35,12 @@ export function cursorFor(item: SceneItem, t: number): Pt {
 	return { x: item.x + item.w * p, y: item.y + item.h * 0.85 };
 }
 
-export function cursorAt(scene: Scene, t: number): Pt | null {
+export interface Cursor extends Pt {
+	section: number;
+	layer: 'fig' | 'col';
+}
+
+export function cursorAt(scene: Scene, t: number): Cursor | null {
 	let last: SceneItem | null = null;
 	for (const item of scene.items) {
 		const drawable = item.type !== 'highlight' || item.w > 0;
@@ -43,7 +48,7 @@ export function cursorAt(scene: Scene, t: number): Pt | null {
 			last = item;
 		}
 	}
-	return last ? cursorFor(last, t) : null;
+	return last ? { ...cursorFor(last, t), section: last.section, layer: last.layer } : null;
 }
 
 export function stepIndexAt(scene: Scene, t: number): number {

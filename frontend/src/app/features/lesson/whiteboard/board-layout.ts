@@ -6,7 +6,7 @@ import {
 	arrow, bboxOf, buildSketch, FRAME_H, FRAME_W, slotCenter,
 } from './sketch-geometry';
 import {
-	BOARD_WIDTH, GuidePoint, HighlightItem, LabelDraw, PathDraw, Rect, Scene, SceneItem, ShapeItem, StepTiming,
+	BOARD_WIDTH, GuidePoint, HighlightItem, ItemBase, LabelDraw, Layer, PathDraw, Rect, Scene, SceneItem, ShapeItem, StepTiming,
 	StrokeDraw, TextItem,
 } from './scene.model';
 import { TextMeasurer } from './text-measure';
@@ -51,6 +51,8 @@ interface ColumnEntry {
 }
 
 interface Section {
+	colX: number;
+	colW: number;
 	index: number;
 	steps: number[];
 	hasFrame: boolean;
@@ -98,7 +100,7 @@ function planSections(steps: LessonStep[]): Section[] {
 		const joined = explicit ?? (drawing.length === 0 ? lastFramed : undefined);
 		const index = joined ?? sections.length;
 		if (joined === undefined) {
-			sections.push({ index, steps: [], hasFrame: false, top: 0, height: 0, column: [] });
+			sections.push({ index, steps: [], hasFrame: false, top: 0, height: 0, column: [], colX: 0, colW: 0 });
 		}
 		sections[index].steps.push(i);
 		sections[index].hasFrame ||= drawing.length > 0;
@@ -136,6 +138,8 @@ function layoutColumns(sections: Section[], steps: LessonStep[], measure: TextMe
 			}
 		}
 		section.top = top;
+		section.colX = colX;
+		section.colW = colW;
 		section.height = Math.max(section.hasFrame ? FRAME_H : 0, y - top - COL_GAP);
 		top += section.height + SECTION_GAP;
 	}
@@ -218,7 +222,11 @@ class SceneBuilder {
 		this.placeAllLabels();
 		const last = this.sections[this.sections.length - 1];
 		const height = last ? last.top + last.height + 120 : 400;
-		return { width: BOARD_WIDTH, height, items: this.items, steps: timings, duration: clock, replies: this.replies };
+		const sections = this.sections.map((s) => ({
+			index: s.index, top: s.top, height: s.height, colX: s.colX, colW: s.colW,
+			frame: s.hasFrame ? { x: FRAME_X, y: s.top, w: FRAME_W, h: FRAME_H } : null,
+		}));
+		return { width: BOARD_WIDTH, height, sections, items: this.items, steps: timings, duration: clock, replies: this.replies };
 	}
 
 	private placeAllLabels(): void {
@@ -275,13 +283,13 @@ class SceneBuilder {
 		return `${prefix}-${this.counter++}`;
 	}
 
-	private base(step: number, ref?: string): { id: string; ref?: string; step: number; start: number; dur: number; erasedAt: null } {
-		return { id: this.newId('i'), ref, step, start: 0, dur: 0, erasedAt: null };
+	private base(step: number, ref: string | undefined, section: number, layer: Layer): ItemBase {
+		return { id: this.newId('i'), ref, step, start: 0, dur: 0, erasedAt: null, section, layer };
 	}
 
 	private textItem(e: ColumnEntry, step: number, ref?: string): Raw {
 		const item: TextItem = {
-			...this.base(step, ref), type: e.kind, x: e.x, y: e.y, w: e.w, h: e.h, fontSize: e.size, color: e.color,
+			...this.base(step, ref, this.sectionOf(step).index, 'col'), type: e.kind, x: e.x, y: e.y, w: e.w, h: e.h, fontSize: e.size, color: e.color,
 			content: e.content, html: e.html, heading: e.heading,
 		};
 		this.items.push(item);
@@ -290,7 +298,8 @@ class SceneBuilder {
 	}
 
 	private register(ref: string | undefined, kind: string, bbox: Rect, anchors: Record<string, Pt>, frame: Frame | null, id: string): Entity {
-		const entity: Entity = { ref: ref ?? id, kind, anchors, bbox, frame, itemIds: [id] };
+		const item = this.items.find((i) => i.id === id)!;
+		const entity: Entity = { ref: ref ?? id, kind, anchors, bbox, frame, itemIds: [id], section: item.section, layer: item.layer };
 		if (ref) {
 			const old = this.entities.get(ref);
 			if (old) {
@@ -406,7 +415,7 @@ class SceneBuilder {
 			run += len;
 		});
 		this.registerSegments(frame, built.strokes);
-		const item: ShapeItem = { ...this.base(si, ref), type: 'shape', strokes, labels: [], guide };
+		const item: ShapeItem = { ...this.base(si, ref, frame?.id ?? this.sectionOf(si).index, 'fig'), type: 'shape', strokes, labels: [], guide };
 		this.pending.push({ item, frame, reqs: built.labels });
 		this.items.push(item);
 		return item;
@@ -494,7 +503,7 @@ class SceneBuilder {
 		}
 		const r = target.bbox;
 		const item: HighlightItem = {
-			...this.base(si), type: 'highlight', x: r.x - 8, y: r.y - 4, w: r.w + 16, h: r.h + 8,
+			...this.base(si, undefined, target.section, target.layer), type: 'highlight', x: r.x - 8, y: r.y - 4, w: r.w + 16, h: r.h + 8,
 			color: tool.color ?? 'yellow', solid: tool.tool === 'fill',
 		};
 		this.items.push(item);
@@ -518,7 +527,7 @@ class SceneBuilder {
 	}
 
 	private marker(si: number, targets: string[]): SceneItem {
-		const item = { ...this.base(si), type: 'highlight', x: 0, y: 0, w: 0, h: 0, color: 'ink', solid: false, eraseTargets: targets } as HighlightItem;
+		const item = { ...this.base(si, undefined, 0, 'col'), type: 'highlight', x: 0, y: 0, w: 0, h: 0, color: 'ink', solid: false, eraseTargets: targets } as HighlightItem;
 		return item;
 	}
 }

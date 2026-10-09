@@ -16,6 +16,7 @@
 	--c-yellow: #facc15;
 	--c-pink: #db2777;
 	--c-none: transparent;
+	container-type: inline-size;
 	height: 100%;
 	overflow-y: auto;
 	overflow-x: hidden;
@@ -40,9 +41,34 @@
 	}
 }
 
+.content {
+	position: relative;
+	padding-top: 2.4cqw;
+	padding-bottom: 14cqw;
+}
+
+.row {
+	display: grid;
+	grid-template-columns: 92cqw;
+	padding-left: 4cqw;
+
+	&.with-figure {
+		grid-template-columns: 52cqw 39cqw;
+		column-gap: 4cqw;
+		padding-left: 3cqw;
+	}
+}
+
+.fig-cell {
+	position: sticky;
+	top: 1.2cqw;
+	align-self: start;
+}
+
 .board {
 	display: block;
 	width: 100%;
+	overflow: visible;
 
 	foreignObject {
 		overflow: visible;

@@ -31,8 +31,12 @@ export interface GuidePoint {
 	at: number;
 }
 
-interface ItemBase {
+export type Layer = 'fig' | 'col';
+
+export interface ItemBase {
 	id: string;
+	section: number;
+	layer: Layer;
 	ref?: string;
 	step: number;
 	start: number;
@@ -80,9 +84,19 @@ export interface StepTiming {
 	words: string[];
 }
 
+export interface SectionInfo {
+	index: number;
+	top: number;
+	height: number;
+	frame: Rect | null;
+	colX: number;
+	colW: number;
+}
+
 export interface Scene {
 	width: number;
 	height: number;
+	sections: SectionInfo[];
 	items: SceneItem[];
 	steps: StepTiming[];
 	duration: number;

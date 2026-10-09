@@ -33,6 +33,8 @@ export interface Entity {
 	bbox: Rect;
 	frame: Frame | null;
 	itemIds: string[];
+	section: number;
+	layer: 'fig' | 'col';
 }
 
 export interface Frame {
