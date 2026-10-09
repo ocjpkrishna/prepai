@@ -14,9 +14,11 @@ billing/
 ├── MODULE.md
 └── subscription/
     ├── controller/   SubscriptionController (plans, checkout, me), RazorpayWebhookController
-    ├── service/      SubscriptionService, PlanCatalogService, RazorpayGateway (wraps razorpay-java)
-    ├── repository/   SubscriptionRepository
-    ├── model/entity/ Subscription
+    ├── service/      PlanCatalogService, SubscriptionService (checkout), SubscriptionStatusService (me),
+    │                 RazorpayWebhookService (signature + idempotency), SubscriptionLifecycleService (applies events),
+    │                 WebhookSignatureVerifier, RazorpayGateway (interface) + FakeRazorpayGateway, RazorpayProperties
+    ├── repository/   SubscriptionRepository, ProcessedWebhookEventRepository
+    ├── model/entity/ Subscription, SubscriptionStatus, ProcessedWebhookEvent
     ├── model/dto/    PlanDto, CheckoutRequest, CheckoutResponse, SubscriptionDto
     └── mapper/       SubscriptionMapper
 ```
@@ -25,12 +27,14 @@ billing/
 `account` (`UserService`: change a user's plan), `common` (errors, `Plan`).
 
 ## Data
-- Table: `subscriptions` (V4).
+- Tables: `subscriptions` and `processed_webhook_events` (both V4).
 - Configuration: `prepai.razorpay.*`. Environment: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`.
 
 ## Rules and gotchas
 - Verify the webhook signature and handle webhooks idempotently.
-- Razorpay sits behind `RazorpayGateway` so tests never call the real service.
+- Razorpay sits behind `RazorpayGateway`; only `FakeRazorpayGateway` exists (no keys, no razorpay-java). A real gateway replaces it once test keys exist.
+- The webhook is public (SecurityConfig); the HMAC-SHA256 signature of the raw body (`X-Razorpay-Signature`) is the proof. With no webhook secret configured every call is rejected. `X-Razorpay-Event-Id` is stored in `processed_webhook_events` in the same transaction as the effect, so a repeat does nothing.
+- Paid events (`subscription.activated`, `.charged`) set the plan and `plan_expires_at`; `.cancelled`, `.halted`, `.completed`, `.expired` drop the student to FREE. A plan that lapses without an event is not reset yet.
 - `GET /subscriptions/plans` is public; the other endpoints need a logged-in user.
 - Follow spec 9.1.2. `./gradlew check` must be green.
 
@@ -38,7 +42,7 @@ billing/
 Razorpay checkout creates a subscription and the webhook updates the student's plan. Plans are listed publicly.
 
 ## Status
-- [ ] plans, checkout, subscription status
-- [ ] Razorpay webhook with signature check and idempotency
-- [ ] Flyway migration V4
-- [ ] Tests mirrored under `src/test/java/.../billing/`
+- [x] plans, checkout, subscription status
+- [x] Razorpay webhook with signature check and idempotency
+- [x] Flyway migration V4 (not yet run against PostgreSQL)
+- [x] Tests mirrored under `src/test/java/.../billing/`

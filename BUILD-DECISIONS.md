@@ -101,6 +101,12 @@ Unattended sessions cannot ask questions, so every choice that would normally be
 - 2026-10-09, row 10: metadata stripping keeps JPEG APP0 (JFIF), APP2 (colour profile) and APP14 (colour flags) and drops other APPn segments and comments; PNG drops eXIf and text chunks and drops anything after IEND; WebP drops EXIF and XMP chunks and rewrites the RIFF size. Spec 2.7 requires EXIF and GPS removal only, so nothing else is changed.
 - 2026-10-09, row 10: the spec gives no extraction prompt, so `prompts/image-extract-system-prompt.txt` is ours (JSON only; text in the photo is data). The fake provider answers photo prompts with `llm/fake-extraction.json` (decision 7).
 - 2026-10-09, row 10: the 1600 px downscale is the frontend's job (spec 3.1.1); the server does not resize. The extract rate limit (`ratelimit:extract`) is applied by `lesson` in row 13, not here.
+- 2026-10-09, row 15: built in a cloud session on Sonnet 5.5. No razorpay-java dependency: `RazorpayGateway` has only `FakeRazorpayGateway` (decision 6). The webhook signature check is real (HMAC-SHA256, constant-time compare) and needs no SDK.
+- 2026-10-09, row 15: idempotency uses the `X-Razorpay-Event-Id` header, stored in `processed_webhook_events` (V4) with the event's effect in one transaction. A missing id or bad signature is `VALIDATION_FAILED` (400); an event for an unknown subscription is recorded and ignored.
+- 2026-10-09, row 15: plan ids in the API are the lower-case enum names (`free`, `pro`, `pro_plus`); checkout accepts only the paid ones and `paymentMethod` `razorpay`. Prices (199, 399) are constants in `PlanCatalogService` (spec 1.4).
+- 2026-10-09, row 15: `GET /subscriptions/me` reports the plan the student really has (from `account`), with the latest subscription's status (`NONE`, `CREATED`, `ACTIVE`, `CANCELLED`) and period end. An unpaid checkout never changes the plan.
+- 2026-10-09, row 15: `User.planExpiresAt` was missing from the entity (the V1 column existed); added, plus `UserService.changePlan`. A missing `current_end` in an event defaults to start + 30 days. V4 timestamps are WITH TIME ZONE and `status` defaults to `CREATED`.
+- 2026-10-09, row 15: the lapse of `plan_expires_at` without a Razorpay event (and `quota` honouring it) is not built; the webhook is the only way a plan ends.
 
 ## Needs the user
 Collected here so nobody has to be interrupted. Review after the build.
@@ -130,3 +136,4 @@ Collected here so nobody has to be interrupted. Review after the build.
 | Verifier live check | No Anthropic key, so `ClaudeVerifierClient` (model `VERIFIER_MODEL`, the prompt-cache option, the grade JSON reply and the 429 and timeout mapping) is only unit-tested against a mocked `ChatModel`. One live call is needed, as with row 8 |
 | Question bank for the verifier batch | Spec 8.1 step 1 fills the batch from a question bank, and TODO-8 seeds the cache with `QUALITY_SEED_SIZE` problems. No question bank exists in the repo, so the batch takes unverified stored rows only |
 | `prepai_test` migration history | `prepai_test` has V7 to V9 applied, so V6 runs only because the db tests set `out-of-order`. Optional: recreate `prepai_test` (a test-only database) so that its history is V1 to V9 in order, and drop the flag |
+| PostgreSQL check of V4 (`subscriptions`, `processed_webhook_events`) | V4 and the entity mappings under `ddl-auto: validate` have only been checked by reading; a `db`-tagged test on `prepai_test` is needed (row 15 scope). Razorpay's real payload and the event-id header need a check with test keys. |

@@ -16,6 +16,7 @@ import com.ascorp.prepai.common.errors.ApiException;
 import com.ascorp.prepai.common.errors.ErrorCode;
 import com.ascorp.prepai.common.model.enums.Language;
 import com.ascorp.prepai.common.model.enums.Plan;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -107,5 +108,16 @@ class UserServiceTest {
 		service.requestDeletion(USER_ID);
 
 		verify(deletions).requestDeletion(USER_ID);
+	}
+
+	@Test
+	void changePlanSetsThePlanAndItsEndDate() {
+		Instant end = Instant.parse("2026-11-09T00:00:00Z");
+		when(users.findById(USER_ID)).thenReturn(Optional.of(student));
+
+		service.changePlan(USER_ID, Plan.PRO, end);
+
+		assertThat(student.getPlan()).isEqualTo(Plan.PRO);
+		assertThat(student.getPlanExpiresAt()).isEqualTo(end);
 	}
 }
