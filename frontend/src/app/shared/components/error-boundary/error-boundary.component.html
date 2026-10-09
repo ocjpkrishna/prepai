@@ -1,0 +1,9 @@
+@if (boundary.reference(); as reference) {
+  <div class="boundary" role="alert">
+    <p>Something went wrong. Reference: <strong>{{ reference }}</strong></p>
+    <div class="actions">
+      <button matButton (click)="copyReference(reference)">Copy reference</button>
+      <button matButton (click)="boundary.dismiss()">Dismiss</button>
+    </div>
+  </div>
+}

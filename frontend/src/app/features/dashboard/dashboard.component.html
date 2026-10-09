@@ -1,0 +1,61 @@
+<section class="page">
+  <h1>Hi{{ user()?.name ? ', ' + user()?.name : '' }}</h1>
+
+  @if (user(); as current) {
+    @if (!current.emailVerified) {
+      <p class="banner" role="status">Verify your email to start lessons. Check your inbox for the link.</p>
+    }
+  }
+
+  @if (error(); as current) {
+    <app-api-error [error]="current" (retry)="load()" />
+  } @else {
+    <section class="card stack" aria-label="Today's usage">
+      <h2>Today</h2>
+      @if (usage(); as current) {
+        <p>{{ usageText(current) }}</p>
+        @if (current.sessionLimit !== null) {
+          <progress class="usage" [value]="current.sessionsToday" [max]="current.sessionLimit"></progress>
+        }
+        @if (current.plan === 'FREE') {
+          <a routerLink="/pricing">Get more sessions with Pro</a>
+        }
+      } @else {
+        <div class="skeleton" aria-hidden="true"></div>
+      }
+    </section>
+
+    <section class="stack" aria-label="Quick start">
+      <h2>Start a lesson</h2>
+      <div class="row">
+        @for (option of subjects; track option.value) {
+          <a matButton="outlined" [routerLink]="['/lessons/new']" [queryParams]="{ subject: option.value }">
+            <app-subject-icon [subject]="option.value" />
+          </a>
+        }
+      </div>
+    </section>
+
+    <section class="stack" aria-label="Lesson history">
+      <h2>Your lessons</h2>
+      @if (history(); as lessons) {
+        @if (lessons.length === 0) {
+          <p class="muted">No lessons yet. Ask your first question to get started.</p>
+        }
+        <ul class="history">
+          @for (lesson of lessons; track lesson.lessonId) {
+            <li>
+              <a [routerLink]="['/lessons', lesson.lessonId]">{{ lesson.title }}</a>
+              <span class="muted">
+                <app-subject-icon [subject]="lesson.subject" /> · {{ lesson.createdAt | date: 'mediumDate' }}
+              </span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <div class="skeleton" aria-hidden="true"></div>
+        <div class="skeleton" aria-hidden="true"></div>
+      }
+    </section>
+  }
+</section>

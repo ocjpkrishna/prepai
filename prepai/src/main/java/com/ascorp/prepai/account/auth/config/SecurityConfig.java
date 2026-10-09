@@ -23,7 +23,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-	private static final String[] PUBLIC_PATHS = {"/api/v1/auth/**", "/api/v1/subscriptions/plans", "/error"};
+	private static final String[] PUBLIC_PATHS = {"/api/v1/auth/**", "/api/v1/subscriptions/plans",
+			"/api/v1/subscriptions/webhook", "/error"};
 
 	private final AppProperties app;
 	private final UnauthenticatedEntryPoint unauthenticatedEntryPoint;

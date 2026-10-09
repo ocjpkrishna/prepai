@@ -1,0 +1,13 @@
+# PrepAI's Prometheus configuration (spec 8.4). Installed to /etc/prepai/prometheus.yml.
+# The app's management port (9091) is scraped on loopback only; nginx never proxies it.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prepai
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["127.0.0.1:9091"]
+        labels:
+          app: prepai

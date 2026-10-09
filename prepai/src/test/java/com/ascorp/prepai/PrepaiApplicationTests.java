@@ -7,8 +7,11 @@ import com.ascorp.prepai.account.auth.repository.RefreshTokenRepository;
 import com.ascorp.prepai.account.auth.repository.UserRepository;
 import com.ascorp.prepai.account.auth.repository.VerificationTokenRepository;
 import com.ascorp.prepai.common.redis.RedisCounter;
+import com.ascorp.prepai.billing.subscription.repository.ProcessedWebhookEventRepository;
+import com.ascorp.prepai.billing.subscription.repository.SubscriptionRepository;
 import com.ascorp.prepai.generation.cache.repository.LessonCacheRepository;
 import com.ascorp.prepai.generation.rag.repository.ProblemEmbeddingRepository;
+import com.ascorp.prepai.lesson.lesson.repository.LessonRepository;
 import com.ascorp.prepai.quota.usage.repository.UsageLogRepository;
 import java.time.Clock;
 import org.junit.jupiter.api.Test;
@@ -42,6 +45,15 @@ class PrepaiApplicationTests {
 
 	@MockitoBean
 	UsageLogRepository usageLogs;
+
+	@MockitoBean
+	LessonRepository lessonRepository;
+
+	@MockitoBean
+	SubscriptionRepository subscriptions;
+
+	@MockitoBean
+	ProcessedWebhookEventRepository processedWebhookEvents;
 
 	@MockitoBean
 	EmbeddingModel embeddingModel;

@@ -1,0 +1,14 @@
+.card {
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+
+  p {
+    margin: 0;
+  }
+}
+
+.danger {
+  border-color: var(--danger);
+}

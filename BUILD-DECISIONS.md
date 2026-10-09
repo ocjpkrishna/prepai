@@ -101,6 +101,47 @@ Unattended sessions cannot ask questions, so every choice that would normally be
 - 2026-10-09, row 10: metadata stripping keeps JPEG APP0 (JFIF), APP2 (colour profile) and APP14 (colour flags) and drops other APPn segments and comments; PNG drops eXIf and text chunks and drops anything after IEND; WebP drops EXIF and XMP chunks and rewrites the RIFF size. Spec 2.7 requires EXIF and GPS removal only, so nothing else is changed.
 - 2026-10-09, row 10: the spec gives no extraction prompt, so `prompts/image-extract-system-prompt.txt` is ours (JSON only; text in the photo is data). The fake provider answers photo prompts with `llm/fake-extraction.json` (decision 7).
 - 2026-10-09, row 10: the 1600 px downscale is the frontend's job (spec 3.1.1); the server does not resize. The extract rate limit (`ratelimit:extract`) is applied by `lesson` in row 13, not here.
+- 2026-10-09, row 11: built on the session model (Haiku 5.5), not the ★ Sonnet tier the table names (same as rows 3, 5, 8 and 9). Sonnet `/code-review` of the whiteboard belongs in row 20.
+- 2026-10-09, row 11: Konva 10 exports its classes from one default object, so `whiteboard/konva-shapes.ts` re-exports them by name and every whiteboard file imports from there.
+- 2026-10-09, row 11: the KaTeX stylesheet is added to the build `styles` in `angular.json`, or equations render unstyled.
+- 2026-10-09, row 11: a LaTeX parse error is detected by KaTeX's `katex-error` class (KaTeX runs with `throwOnError: false`, as spec task 10 asks), then the raw source is shown in a monospace box and a warning is emitted.
+- 2026-10-09, row 11: a step fades the previous one out for 250 ms, clears the board and draws its actions in turn. The spec's "clear and redraw" option is not built: the clear always happens between steps.
+- 2026-10-09, row 11: an action's `config.id` names its element for `FADE_OUT.elementIds` and `CLEAR_CANVAS.keepElements`. Without an id it is `action-<n>`; a repeated id gets a suffix.
+- 2026-10-09, row 11: `FADE_OUT` takes its duration from `animationDuration` (default 600 ms); the `duration` key in spec 3.3's table is not read. Spec correction candidate.
+- 2026-10-09, row 11: spec 3.3 gives no shape for some config, so these were chosen: `DRAW_FREE_BODY.forces[]` = `{angle, magnitude, label, color}`; `DRAW_CIRCUIT.components[]` = `{type, from, to, label}` (RESISTOR, CAPACITOR, BATTERY, else a wire); `DRAW_GRAPH.box` (default left half); `DRAW_CIRCLE.fill` and `DRAW_PARABOLA.dashed` are booleans. `DRAW_ARROW` ignores `angle`, since `from` and `to` give the direction.
+- 2026-10-09, row 11: `DRAW_GRAPH.fn` is parsed by a hand-written parser (`expression.ts`), never evaluated, so the server's text cannot run code. The grammar is in `whiteboard/MODULE.md`.
+- 2026-10-09, row 11: equations stack in one column in the 300 px panel (x 500) from the first equation's y, so they cannot overlap; the `x` in each equation's `position` is not used. A wider equation is scaled down with CSS `zoom`.
+- 2026-10-09, row 11: `WRITE_LATEX` is a KaTeX HTML overlay, not a Konva shape, as spec task 4 says ("overlay div positioned relative to canvas").
+- 2026-10-09, row 11: colours must be `#hex` or a plain colour name, otherwise the default is used; the theme only sets the default ink and muted colours. Dark is the default (spec task 7).
+- 2026-10-09, row 11: the whiteboard has no route; `lesson-player` (row 17) hosts it. The frontend checkpoint is `ng test` and `ng build`; no lint is configured (see handoff log).
+- 2026-10-09, row 12: `deploy.sh` restarts the single app, so it is not zero downtime (spec 9.2 acceptance). Zero downtime needs a second instance, which the spec does not describe. Stated in `ops/MODULE.md`; spec correction candidate.
+- 2026-10-09, row 12: `deploy.sh` runs as root, like `install.sh`, and builds with `bootJar` only. The CI check gate already ran; running it again on the VPS would be slow. It keeps 5 releases in `/opt/prepai/releases` and rolls back when `/actuator/health` is not UP within 60 s.
+- 2026-10-09, row 12: the systemd unit runs `/usr/bin/java` and `/opt/prepai/app.jar`. If Java comes from SDKMAN (spec 10.1), a drop-in must set the path. `install.sh` only checks `java` on the PATH.
+- 2026-10-09, row 12: Prometheus comes from the Debian package. Its own default unit (port 9090) is stopped and disabled only when this run installs the package. The PrepAI unit is `prepai-prometheus` with `DynamicUser`, so it needs no shared user. A busy 9095 stops the install (spec 8.3); the port is not moved automatically.
+- 2026-10-09, row 12: alert expressions use the metric names from the existing code (`prepai_llm_*`, `prepai_lesson_*`, `prepai_api_errors_total`). Metrics that later rows add (`prepai_lesson_*`, `prepai_tts_*`, `prepai_signups_total`, `prepai_upgrades_total`) show no data until those rows ship. `NoData` does not fire.
+- 2026-10-09, row 12: "LLM validation failures above 10%" divides all validation failures by all calls, not first attempts only, because the metrics do not separate them. Spec correction candidate.
+- 2026-10-09, row 12: `LESSON_GENERATION_FAILED` rate uses `prepai_lesson_generated_total` plus the error count as the request total, because no request counter exists.
+- 2026-10-09, row 12: `prepai_llm_circuit_breaker_state` is 1 when open (`LlmMetrics.openAsOne`), so the breaker alert fires when the 10-minute minimum is above 0.5.
+- 2026-10-09, row 12: `grafana-sync.sh` refuses to overwrite a dashboard or alert rule whose folder is not `PrepAI`. The data source is created only if it is missing. The token comes from the environment and goes to curl through stdin.
+- 2026-10-09, row 12: the spec asks for a test alert to fire (acceptance). It cannot be checked here without Grafana and Prometheus, so it is left to the VPS run.
+- 2026-10-09, row 12: `prepai.service` is enabled by `deploy.sh`, not `install.sh`, because it needs a release jar to start. `install.sh` installs and starts only `prepai-prometheus`.
+- 2026-10-09, row 16: built on the session model (Haiku 5.5), as the table names. Cloud session on `row-16`; Maven returned 429 for a while, so the gates ran after retries.
+- 2026-10-09, row 16: VoiceStudio's HTTP contract is assumed, because its source is not in the repo: `POST /synthesize` with `{text, language, voice}` answers WAV bytes, `GET /voices` answers `[{id, name, language}]`. Behind `VoiceStudioClient`; tests use `FakeVoiceStudioClient` and a local `HttpServer`.
+- 2026-10-09, row 16: the duration comes from the WAV header (`WavFormat`), so VoiceStudio need not report it. A reply that is not WAV is `TTS_UNAVAILABLE`.
+- 2026-10-09, row 16: timeouts are a 3 s connect and a 30 s read (spec 4.5 names none). Any failure, including a disk error, is `TTS_UNAVAILABLE`, which never uses quota.
+- 2026-10-09, row 16: the language is `en-IN` or `hi-IN` (the spec 4.5 example); the voice is `prepai.voicestudio.default-voice`, because the request has no voice field.
+- 2026-10-09, row 16: the audio file name is the SHA-256 of text, language and voice joined by a line feed. The spec gives no separator; the feed keeps the fields apart.
+- 2026-10-09, row 16: a file's modification time is its last use (a hit touches it), so the cleanup needs no table. Writes go to `*.wav.tmp` and move into place.
+- 2026-10-09, row 16: the nightly cleanup runs at 03:00, after the purge (02:15) and the verifier (02:30).
+- 2026-10-09, row 16: warm-up is `@Async` with a semaphore of `TTS_WARMUP_CONCURRENCY`; the Boot virtual-thread executor runs it. `lesson` calls it in row 13.
+- 2026-10-09, row 16: the per-user TTS rate limit (spec 4.5 "Limits") is not built: it needs the `quota` module and is not in row 16's scope. Left open in `speech/MODULE.md`.
+- 2026-10-09, row 16: `application.yaml` gets `prepai.audio.dir` (`AUDIO_DIR`, default `./data/audio`); `local` and `prod` already set it.
+- 2026-10-09, row 15: built in a cloud session on Sonnet 5.5. No razorpay-java dependency: `RazorpayGateway` has only `FakeRazorpayGateway` (decision 6). The webhook signature check is real (HMAC-SHA256, constant-time compare) and needs no SDK.
+- 2026-10-09, row 15: idempotency uses the `X-Razorpay-Event-Id` header, stored in `processed_webhook_events` (V4) with the event's effect in one transaction. A missing id or bad signature is `VALIDATION_FAILED` (400); an event for an unknown subscription is recorded and ignored.
+- 2026-10-09, row 15: plan ids in the API are the lower-case enum names (`free`, `pro`, `pro_plus`); checkout accepts only the paid ones and `paymentMethod` `razorpay`. Prices (199, 399) are constants in `PlanCatalogService` (spec 1.4).
+- 2026-10-09, row 15: `GET /subscriptions/me` reports the plan the student really has (from `account`), with the latest subscription's status (`NONE`, `CREATED`, `ACTIVE`, `CANCELLED`) and period end. An unpaid checkout never changes the plan.
+- 2026-10-09, row 15: `User.planExpiresAt` was missing from the entity (the V1 column existed); added, plus `UserService.changePlan`. A missing `current_end` in an event defaults to start + 30 days. V4 timestamps are WITH TIME ZONE and `status` defaults to `CREATED`.
+- 2026-10-09, row 15: the lapse of `plan_expires_at` without a Razorpay event (and `quota` honouring it) is not built; the webhook is the only way a plan ends.
 
 ## Needs the user
 Collected here so nobody has to be interrupted. Review after the build.
@@ -119,6 +160,7 @@ Collected here so nobody has to be interrupted. Review after the build.
 | Cache seed run | After the verifier exists (TODO-8) |
 | Angular version check | Confirm the version `ng new` picked suits the team |
 | VoiceStudio source and install | `install.sh` only reports it; the TTS server's source is not in this repository (spec 10.1) |
+| VoiceStudio API contract | Row 16 assumes `POST /synthesize` (JSON in, WAV out) and `GET /voices` (see decisions, row 16). Check both against the real server before launch; a live call is not possible here |
 | CI secrets and deploy switch | `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS` secrets and the `DEPLOY_ENABLED` variable, set after row 12 |
 | Production secrets file | `install.sh` generates `DB_PASSWORD` and `JWT_SECRET` in `/etc/prepai/prepai.env`; the operator fills the rest (Google, Claude, Razorpay, SMTP) |
 | PostgreSQL check of the auth schema | V1, V7 and V8 and the `ddl-auto: validate` mapping have only been checked by reading. Run them on the VPS against `prepai_test` with a `db`-tagged test before row 4 relies on them |
@@ -130,3 +172,6 @@ Collected here so nobody has to be interrupted. Review after the build.
 | Verifier live check | No Anthropic key, so `ClaudeVerifierClient` (model `VERIFIER_MODEL`, the prompt-cache option, the grade JSON reply and the 429 and timeout mapping) is only unit-tested against a mocked `ChatModel`. One live call is needed, as with row 8 |
 | Question bank for the verifier batch | Spec 8.1 step 1 fills the batch from a question bank, and TODO-8 seeds the cache with `QUALITY_SEED_SIZE` problems. No question bank exists in the repo, so the batch takes unverified stored rows only |
 | `prepai_test` migration history | `prepai_test` has V7 to V9 applied, so V6 runs only because the db tests set `out-of-order`. Optional: recreate `prepai_test` (a test-only database) so that its history is V1 to V9 in order, and drop the flag |
+| Whiteboard visual check | Row 11 is tested with a Konva stand-in (jsdom has no canvas) and built, but nobody has looked at it in a browser. Check the spec 3.2 sample on the board in dark and light themes once the lesson player (row 17) hosts it |
+| Frontend lint | No ESLint is configured, so the frontend "lint" gate is not run (row 1 open item). Add it when the team picks a config |
+| PostgreSQL check of V4 (`subscriptions`, `processed_webhook_events`) | V4 and the entity mappings under `ddl-auto: validate` have only been checked by reading; a `db`-tagged test on `prepai_test` is needed (row 15 scope). Razorpay's real payload and the event-id header need a check with test keys. |

@@ -1,0 +1,23 @@
+{
+  "uid": "prepai-llm-cost-retries",
+  "title": "PrepAI - LLM cost and retries",
+  "tags": ["prepai"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "1m",
+  "time": {"from": "now-24h", "to": "now"},
+  "panels": [
+    {"id": 1, "type": "timeseries", "title": "Cost per hour by purpose (USD)", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum by (purpose) (increase(prepai_llm_cost_usd_total[1h]))", "legendFormat": "{{purpose}}"}]},
+    {"id": 2, "type": "timeseries", "title": "Average cost per lesson (alert above 0.05)", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum(increase(prepai_llm_cost_usd_total[1h])) / sum(increase(prepai_lesson_generated_total[1h]))", "legendFormat": "USD per lesson"}]},
+    {"id": 3, "type": "timeseries", "title": "Retry rate (alert above 15%)", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum(increase(prepai_llm_retry_total[1h])) / sum(increase(prepai_llm_calls_total[1h]))", "legendFormat": "retry rate"}]},
+    {"id": 4, "type": "timeseries", "title": "Retries by reason", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum by (reason) (rate(prepai_llm_retry_total[15m]))", "legendFormat": "{{reason}}"}]},
+    {"id": 5, "type": "timeseries", "title": "LLM calls by outcome", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum by (outcome) (rate(prepai_llm_calls_total[15m]))", "legendFormat": "{{outcome}}"}]},
+    {"id": 6, "type": "timeseries", "title": "Circuit breaker open (1 = open)", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "max by (provider) (prepai_llm_circuit_breaker_state)", "legendFormat": "{{provider}}"}]}
+  ]
+}

@@ -11,6 +11,9 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** Turns every exception into the spec 4.7 error format. Unexpected failures are logged here and never shown. */
@@ -36,6 +39,16 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	public ResponseEntity<ApiErrorResponse> handleUnreadableBody() {
+		return buildResponse(ErrorCode.VALIDATION_FAILED);
+	}
+
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	public ResponseEntity<ApiErrorResponse> handleUploadTooLarge() {
+		return buildResponse(ErrorCode.IMAGE_TOO_LARGE);
+	}
+
+	@ExceptionHandler({MissingServletRequestPartException.class, MethodArgumentTypeMismatchException.class})
+	public ResponseEntity<ApiErrorResponse> handleBadRequestParts() {
 		return buildResponse(ErrorCode.VALIDATION_FAILED);
 	}
 

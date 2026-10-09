@@ -1,0 +1,16 @@
+<div class="wb-frame">
+  <div class="wb-stage" #stage></div>
+  <div class="wb-latex" #latex></div>
+  <div
+    class="wb-equations"
+    [style.left.px]="panelLeft()"
+    [style.top.px]="panelTop()"
+    [style.width.px]="panelWidth()">
+    @for (equation of equations(); track $index) {
+      <app-whiteboard-equation
+        [latex]="equation.latex"
+        [highlight]="equation.highlight"
+        [maxWidth]="panelWidth()" />
+    }
+  </div>
+</div>

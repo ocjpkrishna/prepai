@@ -142,6 +142,37 @@ install_nginx() {
 	systemctl reload nginx
 }
 
+check_port_free() {
+	# Check before binding (spec 8.3). A busy port stops the install; it is not moved silently.
+	local port="$1"
+	systemctl is-active --quiet prepai-prometheus && return 0
+	if lsof -iTCP:"$port" -sTCP:LISTEN -Pn >/dev/null 2>&1; then
+		die "port $port is busy: choose another port and update the config (spec 8.3)"
+	fi
+}
+
+install_monitoring() {
+	install_missing_packages curl jq
+	# The Debian package starts its own Prometheus on 9090. Only a package this run installs is stopped
+	# and disabled; PrepAI uses its own unit on 9095 instead.
+	if ! package_installed prometheus; then
+		install_missing_packages prometheus
+		systemctl disable --now prometheus.service
+	fi
+	check_port_free 9095
+	install -d -m 755 /etc/prepai
+	install -m 644 "$REPO_DIR/ops/prometheus/prometheus.yml" /etc/prepai/prometheus.yml
+}
+
+install_units() {
+	# prepai.service is enabled by scripts/deploy.sh, because it needs a release jar to start.
+	install -m 644 "$REPO_DIR/ops/systemd/prepai.service" /etc/systemd/system/prepai.service
+	install -m 644 "$REPO_DIR/ops/systemd/prepai-prometheus.service" /etc/systemd/system/prepai-prometheus.service
+	install -m 644 "$REPO_DIR/ops/logrotate/prepai" /etc/logrotate.d/prepai
+	systemctl daemon-reload
+	systemctl enable --now prepai-prometheus.service
+}
+
 check_voicestudio() {
 	if systemctl cat voicestudio.service >/dev/null 2>&1; then
 		log "VoiceStudio service is present"
@@ -158,9 +189,11 @@ main() {
 	ensure_database_role
 	ensure_database
 	ensure_directories
+	install_monitoring
+	install_units
 	install_nginx
 	check_voicestudio
-	log "done. Next: fill the empty secrets in $ENV_FILE and run ./gradlew -p prepai bootRun or the systemd unit"
+	log "done. Next: fill the empty secrets in $ENV_FILE, then run sudo ./scripts/deploy.sh to start the app"
 }
 
 main "$@"

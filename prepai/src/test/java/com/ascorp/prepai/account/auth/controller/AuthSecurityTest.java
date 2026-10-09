@@ -12,8 +12,11 @@ import com.ascorp.prepai.account.auth.repository.UserRepository;
 import com.ascorp.prepai.account.auth.repository.VerificationTokenRepository;
 import com.ascorp.prepai.common.errors.TraceIdFilter;
 import com.ascorp.prepai.common.redis.RedisCounter;
+import com.ascorp.prepai.billing.subscription.repository.ProcessedWebhookEventRepository;
+import com.ascorp.prepai.billing.subscription.repository.SubscriptionRepository;
 import com.ascorp.prepai.generation.cache.repository.LessonCacheRepository;
 import com.ascorp.prepai.generation.rag.repository.ProblemEmbeddingRepository;
+import com.ascorp.prepai.lesson.lesson.repository.LessonRepository;
 import com.ascorp.prepai.quota.usage.repository.UsageLogRepository;
 import jakarta.servlet.Filter;
 import java.time.Instant;
@@ -65,6 +68,15 @@ class AuthSecurityTest {
 
 	@MockitoBean
 	private UsageLogRepository usageLogs;
+
+	@MockitoBean
+	private LessonRepository lessons;
+
+	@MockitoBean
+	private SubscriptionRepository subscriptions;
+
+	@MockitoBean
+	private ProcessedWebhookEventRepository processedWebhookEvents;
 
 	@MockitoBean
 	private EmbeddingModel embeddingModel;

@@ -1,0 +1,61 @@
+<section class="page">
+  <h1>Create your free account</h1>
+  <form class="auth-form" [formGroup]="form" (ngSubmit)="submit()">
+    <mat-form-field>
+      <mat-label>Name</mat-label>
+      <input matInput formControlName="name" autocomplete="name">
+      @if (form.controls['name'].errors?.['server']; as message) {
+        <mat-error>{{ message }}</mat-error>
+      }
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Email</mat-label>
+      <input matInput type="email" formControlName="email" autocomplete="email">
+      @if (form.controls['email'].hasError('email')) {
+        <mat-error>Enter a valid email address</mat-error>
+      } @else if (form.controls['email'].errors?.['server']; as message) {
+        <mat-error>{{ message }}</mat-error>
+      }
+    </mat-form-field>
+    @if (emailTaken()) {
+      <p class="form-error" role="alert">
+        This email already has an account. <a routerLink="/login">Log in instead</a>.
+      </p>
+    }
+    <mat-form-field>
+      <mat-label>Password</mat-label>
+      <input matInput type="password" formControlName="password" autocomplete="new-password">
+      <mat-error>Use at least {{ minPasswordLength }} characters</mat-error>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Date of birth</mat-label>
+      <input matInput type="date" formControlName="dateOfBirth">
+      @if (form.controls['dateOfBirth'].errors?.['server']; as message) {
+        <mat-error>{{ message }}</mat-error>
+      }
+    </mat-form-field>
+    @if (minor()) {
+      <mat-form-field>
+        <mat-label>Parent or guardian email</mat-label>
+        <input matInput type="email" formControlName="guardianEmail">
+        <mat-hint>We need a guardian to consent before you can start lessons.</mat-hint>
+        @if (form.controls['guardianEmail'].hasError('required')) {
+          <mat-error>Enter your guardian's email address</mat-error>
+        }
+      </mat-form-field>
+    }
+    <mat-form-field>
+      <mat-label>Language</mat-label>
+      <mat-select formControlName="language">
+        <mat-option value="en">English</mat-option>
+        <mat-option value="hi">हिन्दी</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <mat-checkbox formControlName="termsAccepted">
+      I accept the <a routerLink="/terms">Terms</a> and the <a routerLink="/privacy">Privacy Policy</a>
+    </mat-checkbox>
+    <app-api-error [error]="error()" (retry)="submit()" />
+    <button matButton="filled" type="submit" class="full-width" [disabled]="submitting()">Create account</button>
+  </form>
+  <p class="muted">Already registered? <a routerLink="/login">Log in</a></p>
+</section>

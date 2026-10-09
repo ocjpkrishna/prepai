@@ -1,0 +1,19 @@
+{
+  "uid": "prepai-business-funnel",
+  "title": "PrepAI - Business funnel",
+  "tags": ["prepai"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "5m",
+  "time": {"from": "now-30d", "to": "now"},
+  "panels": [
+    {"id": 1, "type": "timeseries", "title": "Sign-ups per day", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum(increase(prepai_signups_total[1d]))", "legendFormat": "sign-ups"}]},
+    {"id": 2, "type": "timeseries", "title": "Upgrades per day", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum(increase(prepai_upgrades_total[1d]))", "legendFormat": "upgrades"}]},
+    {"id": 3, "type": "stat", "title": "Sign-ups (30 days)", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 0, "y": 8, "w": 12, "h": 6},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum(increase(prepai_signups_total[30d]))", "instant": true}]},
+    {"id": 4, "type": "stat", "title": "Upgrades (30 days)", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "gridPos": {"x": 12, "y": 8, "w": 12, "h": 6},
+     "targets": [{"refId": "A", "datasource": {"type":"prometheus","uid":"prepai-prometheus"}, "expr": "sum(increase(prepai_upgrades_total[30d]))", "instant": true}]}
+  ]
+}

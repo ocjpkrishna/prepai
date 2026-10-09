@@ -1,0 +1,8 @@
+:host {
+  display: block;
+}
+
+:host(.highlight) {
+  border-left: 3px solid #f59e0b;
+  padding-left: 8px;
+}

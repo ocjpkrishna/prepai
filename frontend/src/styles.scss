@@ -1,1 +1,84 @@
-/* You can add global styles to this file, and also import other style files */
+@use '@angular/material' as mat;
+
+// Dark is the default: most students study at night (spec agent7, task 9).
+html {
+  @include mat.theme((
+    color: (
+      primary: mat.$azure-palette,
+      tertiary: mat.$violet-palette,
+      theme-type: dark,
+    ),
+    typography: (
+      plain-family: 'Inter, sans-serif',
+      brand-family: 'Inter, sans-serif',
+    ),
+    density: 0,
+  ));
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #0f1218;
+  --surface: #161a22;
+  --surface-raised: #1f2430;
+  --text: #e8ebf2;
+  --text-muted: #9aa3b2;
+  --border: #2c3442;
+  --accent: #7aa2ff;
+  --danger: #ff6b6b;
+  --danger-soft: #3a1f25;
+  --radius: 12px;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+}
+
+a {
+  color: var(--accent);
+}
+
+// Phone width first; a 16px gutter and no horizontal scroll (spec agent7, task 8).
+.page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  display: grid;
+  gap: 16px;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.full-width {
+  width: 100%;
+}
+
+img,
+video {
+  max-width: 100%;
+}
