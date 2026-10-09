@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { normalizeForSpeech } from './speech-normalizer';
 
 const BASE_RATE = 0.98;
 
@@ -14,7 +15,7 @@ export class SpeechService {
 			return;
 		}
 		synth.cancel();
-		const utterance = new SpeechSynthesisUtterance(text);
+		const utterance = new SpeechSynthesisUtterance(normalizeForSpeech(text));
 		utterance.lang = 'en-IN';
 		utterance.rate = BASE_RATE * rate;
 		synth.speak(utterance);
